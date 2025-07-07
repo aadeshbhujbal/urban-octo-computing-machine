@@ -41,12 +41,13 @@ export async function getReleasesFromJira(projectName?: string): Promise<JiraVer
   }));
 }
 
-export async function getSprintsFromJira(boardId: string): Promise<JiraSprint[]> {
+export async function getSprintsFromJira(boardId: string, state: string = 'active'): Promise<JiraSprint[]> {
   if (!JIRA_URL || !JIRA_USER || !JIRA_TOKEN) {
     throw new Error('Jira credentials are not set in environment variables');
   }
   const resp = await axios.get(`${JIRA_URL}/rest/agile/1.0/board/${boardId}/sprint`, {
     auth: { username: JIRA_USER, password: JIRA_TOKEN },
+    params: { state },
   });
   return ((resp.data as { values: JiraSprint[] }).values) || [];
 }
@@ -70,4 +71,31 @@ export async function getEpicsFromJira(boardId: string): Promise<JiraEpic[]> {
     auth: { username: JIRA_USER, password: JIRA_TOKEN },
   });
   return ((resp.data as { values: JiraEpic[] }).values) || [];
+}
+
+// New helpers for velocityService
+export async function getClosedSprintsFromJira(boardId: string): Promise<JiraSprint[]> {
+  return getSprintsFromJira(boardId, 'closed');
+}
+
+export async function getSprintIssuesWithAssignee(sprintId: number): Promise<any[]> {
+  if (!JIRA_URL || !JIRA_USER || !JIRA_TOKEN) {
+    throw new Error('Jira credentials are not set in environment variables');
+  }
+  const resp = await axios.get(`${JIRA_URL}/rest/agile/1.0/sprint/${sprintId}/issue`, {
+    auth: { username: JIRA_USER, password: JIRA_TOKEN },
+    params: { fields: 'assignee,created,customfield_10002' },
+  });
+  return ((resp.data as { issues: any[] }).issues) || [];
+}
+
+export async function getVelocityStatsFromJira(boardId: string): Promise<any> {
+  if (!JIRA_URL || !JIRA_USER || !JIRA_TOKEN) {
+    throw new Error('Jira credentials are not set in environment variables');
+  }
+  const resp = await axios.get(`${JIRA_URL}/rest/greenhopper/1.0/rapid/charts/velocity`, {
+    auth: { username: JIRA_USER, password: JIRA_TOKEN },
+    params: { rapidViewId: boardId },
+  });
+  return resp.data;
 } 

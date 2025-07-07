@@ -1,0 +1,177 @@
+{
+  "info": {
+    "name": "Node Microservice API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "node-microservice-api-collection"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/health",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "health"]
+        }
+      }
+    },
+    {
+      "name": "PI Planning Summary",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/summary?project={{project}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "summary"],
+          "query": [
+            { "key": "project", "value": "{{project}}" },
+            { "key": "boardId", "value": "{{boardId}}" },
+            { "key": "piStartDate", "value": "{{piStartDate}}" },
+            { "key": "piEndDate", "value": "{{piEndDate}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Merge Requests Heatmap",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/merge-requests/heatmap?groupId={{groupId}}&startDate={{startDate}}&endDate={{endDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "merge-requests", "heatmap"],
+          "query": [
+            { "key": "groupId", "value": "{{groupId}}" },
+            { "key": "startDate", "value": "{{startDate}}" },
+            { "key": "endDate", "value": "{{endDate}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Velocity Summary",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/velocity/summary?boardId={{boardId}}&numSprints={{numSprints}}&year={{year}}&sprintPrefix={{sprintPrefix}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "velocity", "summary"],
+          "query": [
+            { "key": "boardId", "value": "{{boardId}}" },
+            { "key": "numSprints", "value": "{{numSprints}}" },
+            { "key": "year", "value": "{{year}}" },
+            { "key": "sprintPrefix", "value": "{{sprintPrefix}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Orchestration Run",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/orchestration/run",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "orchestration", "run"]
+        }
+      }
+    },
+    {
+      "name": "Jira - Get Releases",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/jira/releases?project={{project}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "jira", "releases"],
+          "query": [
+            { "key": "project", "value": "{{project}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Jira - Get Sprints",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/jira/sprints?boardId={{boardId}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "jira", "sprints"],
+          "query": [
+            { "key": "boardId", "value": "{{boardId}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Jira - Get Issues",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/jira/issues?jql={{jql}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "jira", "issues"],
+          "query": [
+            { "key": "jql", "value": "{{jql}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Jira - Get Epics",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/jira/epics?boardId={{boardId}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "jira", "epics"],
+          "query": [
+            { "key": "boardId", "value": "{{boardId}}" }
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    { "key": "project", "value": "" },
+    { "key": "boardId", "value": "" },
+    { "key": "piStartDate", "value": "" },
+    { "key": "piEndDate", "value": "" },
+    { "key": "groupId", "value": "" },
+    { "key": "startDate", "value": "" },
+    { "key": "endDate", "value": "" },
+    { "key": "numSprints", "value": "" },
+    { "key": "year", "value": "" },
+    { "key": "sprintPrefix", "value": "" },
+    { "key": "jql", "value": "" }
+  ]
+} 
