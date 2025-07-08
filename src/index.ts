@@ -1,6 +1,6 @@
 import express from 'express';
 import dotenv from 'dotenv';
-import healthRoutes from './routes/v1/health';
+import healthRoutes from './routes/health';
 import jiraRoutes from './routes/v1/jira';
 import piPlanningRoutes from './routes/v1/piPlanning';
 import mergeRequestsRoutes from './routes/v1/mergeRequests';
@@ -36,13 +36,15 @@ const swaggerOptions = {
       { url: 'http://localhost:' + port },
     ],
   },
-  apis: ['./src/routes/v1/*.ts'],
+  apis: ['./src/routes/v1/*.ts', './src/routes/health.ts'],
 };
 const swaggerSpec = swaggerJSDoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+// Central health route
+app.use('/api/health', healthRoutes);
+
 // API Versioning: Mount all v1 routes under /api/v1
-app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/jira', jiraRoutes);
 app.use('/api/v1/pi-planning', piPlanningRoutes);
 app.use('/api/v1/merge-requests', mergeRequestsRoutes);

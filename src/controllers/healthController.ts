@@ -2,6 +2,16 @@ import { Request, Response } from 'express';
 import axios from 'axios';
 
 export const healthCheck = async (req: Request, res: Response): Promise<void> => {
+  // Basic health check - just service status
+  res.json({
+    status: 'Healthy',
+    timestamp: new Date().toISOString(),
+    service: 'Node Microservice',
+    version: '1.0.0'
+  });
+};
+
+export const statusCheck = async (req: Request, res: Response): Promise<void> => {
   // Check Jira
   let jiraStatus = 'ok';
   try {
