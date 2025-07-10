@@ -56,6 +56,10 @@ The following environment variables must be set in your `.env` file at the proje
 
 **Note:** All analytics and orchestration endpoints require the relevant credentials to be set. The service will throw clear errors if any required variable is missing.
 
+## Note on Chart/Image Endpoints
+
+Chart/image endpoints (wordcloud, bar/velocity charts) are not available in this build due to removal of native dependencies (canvas, d3-cloud, chartjs-node-canvas). All CSV and JSON analytics endpoints remain fully functional and available.
+
 ---
 
 **No UI is included. This is a backend microservice only.** 

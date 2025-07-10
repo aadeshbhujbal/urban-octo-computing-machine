@@ -84,4 +84,59 @@ export async function getMergeRequestsHeatmap(options: MergeRequestsHeatmapOptio
   };
 }
 
+export async function getMergeRequestsAnalytics(options: MergeRequestsHeatmapOptions): Promise<any[]> {
+  const { groupId, startDate, endDate } = options;
+  const token = process.env.GITLAB_TOKEN;
+  if (!token) throw new Error('GITLAB_TOKEN not set in environment');
+
+  const api = new Gitlab({
+    token,
+    host: process.env.GITLAB_HOST || 'https://gitlab.com',
+  });
+
+  // Get all projects in the group
+  const projects = await api.Groups.projects(groupId, { perPage: 100 });
+  const analytics: any[] = [];
+
+  for (const project of projects) {
+    // Get all merge requests in the date range
+    const mrs = await api.MergeRequests.all({
+      projectId: project.id,
+      createdAfter: startOfDay(new Date(startDate)).toISOString(),
+      createdBefore: endOfDay(new Date(endDate)).toISOString(),
+      perPage: 100,
+    });
+    for (const mr of mrs) {
+      const author = (mr.author && typeof mr.author.name === 'string') ? mr.author.name : 'Unknown';
+      const created_at = mr.created_at;
+      const updated_at = mr.updated_at;
+      let approval_duration = null;
+      if (mr.state === 'merged' && mr.merged_at) {
+        approval_duration = (new Date(mr.merged_at).getTime() - new Date(mr.created_at).getTime()) / (1000 * 60 * 60); // hours
+      }
+      // Commits
+      let last_commit_to_merge = null;
+      try {
+        const commits = await api.MergeRequests.commits(project.id, mr.iid);
+        if (commits && commits.length > 0) {
+          const last_commit_date = new Date(commits[0].created_at);
+          last_commit_to_merge = (new Date(updated_at).getTime() - last_commit_date.getTime()) / (1000 * 60 * 60); // hours
+        }
+      } catch {}
+      analytics.push({
+        id: mr.iid,
+        status: mr.state,
+        title: mr.title,
+        author,
+        created_at,
+        updated_at,
+        project: project.name,
+        approval_duration,
+        last_commit_to_merge,
+      });
+    }
+  }
+  return analytics;
+}
+
 export {} 
