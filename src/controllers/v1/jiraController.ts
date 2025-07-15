@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { getReleasesFromJira, getSprintsFromJira, getIssuesFromJira, getEpicsFromJira } from '../../services/jiraService';
+import axios from 'axios';
 
 export const getReleases = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -50,5 +51,24 @@ export const getEpics = async (req: Request, res: Response): Promise<void> => {
     res.json(epics);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch epics', details: (error as Error).message });
+  }
+};
+
+export const testJiraConnection = async (req: Request, res: Response): Promise<void> => {
+  const JIRA_URL = process.env.JIRA_URL;
+  const JIRA_USER = process.env.JIRA_USER;
+  const JIRA_TOKEN = process.env.JIRA_TOKEN;
+  if (!JIRA_URL || !JIRA_USER || !JIRA_TOKEN) {
+    res.status(500).json({ status: 'error', message: 'Missing Jira environment variables' });
+    return;
+  }
+  try {
+    // Ping the my profile endpoint as a simple health check
+    await axios.get(`${JIRA_URL}/rest/api/3/myself`, {
+      auth: { username: JIRA_USER, password: JIRA_TOKEN },
+    });
+    res.json({ status: 'success', message: 'Connected to Jira successfully' });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
   }
 }; 

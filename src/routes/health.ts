@@ -36,15 +36,15 @@ router.get('/', healthCheck);
 
 /**
  * @swagger
- * /api/health/status:
+ * /api/health/test-connection:
  *   get:
- *     summary: Detailed status check endpoint
- *     description: Returns detailed status including external service health checks (Jira, Confluence, GitLab) and system parameters.
+ *     summary: Test connection to all external services
+ *     description: Attempts to connect to Jira, Confluence, and GitLab, returning their connection status and error details if any.
  *     tags:
  *       - Health
  *     responses:
  *       200:
- *         description: Detailed service status
+ *         description: Connection status for all services
  *         content:
  *           application/json:
  *             schema:
@@ -79,6 +79,6 @@ router.get('/', healthCheck);
  *                       type: string
  *                       format: date-time
  */
-router.get('/status', statusCheck);
+router.get('/test-connection', statusCheck);
 
 export default router; 

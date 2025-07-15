@@ -29,4 +29,26 @@ export const updateConfluencePage = async (req: Request, res: Response): Promise
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
+};
+
+export const testConfluenceConnection = async (req: Request, res: Response): Promise<void> => {
+  const confluenceUrl = process.env.CONFLUENCE_URL;
+  const username = process.env.CONFLUENCE_USER;
+  const token = process.env.CONFLUENCE_TOKEN;
+  if (!confluenceUrl || !username || !token) {
+    res.status(500).json({ status: 'error', message: 'Missing Confluence environment variables' });
+    return;
+  }
+  try {
+    // Ping the current user endpoint as a simple health check
+    await axios.get(`${confluenceUrl}/wiki/rest/api/user/current`, {
+      headers: {
+        'Authorization': `Basic ${Buffer.from(`${username}:${token}`).toString('base64')}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    res.json({ status: 'success', message: 'Connected to Confluence successfully' });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
 }; 
