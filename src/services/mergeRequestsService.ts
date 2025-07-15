@@ -139,4 +139,18 @@ export async function getMergeRequestsAnalytics(options: MergeRequestsHeatmapOpt
   return analytics;
 }
 
+export async function testGitlabConnection(): Promise<{ status: string; message: string }> {
+  const token = process.env.GITLAB_TOKEN;
+  const host = process.env.GITLAB_HOST || 'https://gitlab.com';
+  if (!token) return { status: 'error', message: 'Missing GitLab token' };
+  try {
+    const api = new Gitlab({ token, host });
+    // Ping the /user endpoint
+    await api.Users.current();
+    return { status: 'success', message: 'Connected to GitLab successfully' };
+  } catch (error: any) {
+    return { status: 'error', message: error.message };
+  }
+}
+
 export {} 
