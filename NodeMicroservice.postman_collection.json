@@ -159,9 +159,357 @@
           ]
         }
       }
+    },
+    {
+      "name": "PI Planning - Releases",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/releases?project={{project}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "releases"],
+          "query": [
+            { "key": "project", "value": "{{project}}" },
+            { "key": "boardId", "value": "{{boardId}}" },
+            { "key": "piStartDate", "value": "{{piStartDate}}" },
+            { "key": "piEndDate", "value": "{{piEndDate}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "PI Planning - Sprints",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/sprints?project={{project}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "sprints"],
+          "query": [
+            { "key": "project", "value": "{{project}}" },
+            { "key": "boardId", "value": "{{boardId}}" },
+            { "key": "piStartDate", "value": "{{piStartDate}}" },
+            { "key": "piEndDate", "value": "{{piEndDate}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "PI Planning - Issues",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/issues?project={{project}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "issues"],
+          "query": [
+            { "key": "project", "value": "{{project}}" },
+            { "key": "boardId", "value": "{{boardId}}" },
+            { "key": "piStartDate", "value": "{{piStartDate}}" },
+            { "key": "piEndDate", "value": "{{piEndDate}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "PI Planning - Story Points",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/story-points?project={{project}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "story-points"],
+          "query": [
+            { "key": "project", "value": "{{project}}" },
+            { "key": "boardId", "value": "{{boardId}}" },
+            { "key": "piStartDate", "value": "{{piStartDate}}" },
+            { "key": "piEndDate", "value": "{{piEndDate}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "PI Planning - RAG Status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/rag-status?project={{project}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "rag-status"],
+          "query": [
+            { "key": "project", "value": "{{project}}" },
+            { "key": "boardId", "value": "{{boardId}}" },
+            { "key": "piStartDate", "value": "{{piStartDate}}" },
+            { "key": "piEndDate", "value": "{{piEndDate}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "PI Planning - Epic Breakdown",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/epic-breakdown?project={{project}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "epic-breakdown"],
+          "query": [
+            { "key": "project", "value": "{{project}}" },
+            { "key": "boardId", "value": "{{boardId}}" },
+            { "key": "piStartDate", "value": "{{piStartDate}}" },
+            { "key": "piEndDate", "value": "{{piEndDate}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "PI Planning - Sprint Breakdown",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/sprint-breakdown?project={{project}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "sprint-breakdown"],
+          "query": [
+            { "key": "project", "value": "{{project}}" },
+            { "key": "boardId", "value": "{{boardId}}" },
+            { "key": "piStartDate", "value": "{{piStartDate}}" },
+            { "key": "piEndDate", "value": "{{piEndDate}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "PI Planning - Burnup",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/burnup?project={{project}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "burnup"],
+          "query": [
+            { "key": "project", "value": "{{project}}" },
+            { "key": "boardId", "value": "{{boardId}}" },
+            { "key": "piStartDate", "value": "{{piStartDate}}" },
+            { "key": "piEndDate", "value": "{{piEndDate}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "PI Planning - RAID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/raid?project={{project}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "raid"],
+          "query": [
+            { "key": "project", "value": "{{project}}" },
+            { "key": "boardId", "value": "{{boardId}}" },
+            { "key": "piStartDate", "value": "{{piStartDate}}" },
+            { "key": "piEndDate", "value": "{{piEndDate}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "PI Planning - WSJF",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/wsjf?project={{project}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "wsjf"],
+          "query": [
+            { "key": "project", "value": "{{project}}" },
+            { "key": "boardId", "value": "{{boardId}}" },
+            { "key": "piStartDate", "value": "{{piStartDate}}" },
+            { "key": "piEndDate", "value": "{{piEndDate}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "PI Planning - PI Scope",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/pi-scope?project={{project}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "pi-scope"],
+          "query": [
+            { "key": "project", "value": "{{project}}" },
+            { "key": "boardId", "value": "{{boardId}}" },
+            { "key": "piStartDate", "value": "{{piStartDate}}" },
+            { "key": "piEndDate", "value": "{{piEndDate}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Text Analytics - Extract Key Phrases",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"texts\": [\"example text\"]\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/v1/text/keyphrases",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "text", "keyphrases"]
+        }
+      }
+    },
+    {
+      "name": "Confluence - Update Page",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pageId\": \"12345\",\n  \"content\": \"Updated content\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/v1/confluence/update",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "confluence", "update"]
+        }
+      }
+    },
+    {
+      "name": "CSV Export - Team CSV",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"team\": [\n    {\"name\": \"Alice\", \"role\": \"Developer\"}\n  ]\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/v1/csv/export-team-csv",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "csv", "export-team-csv"]
+        }
+      }
+    },
+    {
+      "name": "CSV Export - Sprints CSV",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sprints\": [\n    {\"name\": \"Sprint 1\", \"startDate\": \"2024-01-01\", \"endDate\": \"2024-01-15\"}\n  ]\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/v1/csv/export-sprints-csv",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "csv", "export-sprints-csv"]
+        }
+      }
+    },
+    {
+      "name": "HTML Report - Generate",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"data\": {}\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/v1/reports/html",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "reports", "html"]
+        }
+      }
+    },
+    {
+      "name": "Velocity - Chart Data",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/charts/velocity-data?boardId={{boardId}}&numSprints={{numSprints}}&year={{year}}&sprintPrefix={{sprintPrefix}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "charts", "velocity-data"],
+          "query": [
+            { "key": "boardId", "value": "{{boardId}}" },
+            { "key": "numSprints", "value": "{{numSprints}}" },
+            { "key": "year", "value": "{{year}}" },
+            { "key": "sprintPrefix", "value": "{{sprintPrefix}}" }
+          ]
+        }
+      }
     }
   ],
   "variable": [
+    { "key": "NODE_ENV", "value": "development" },
+    { "key": "PORT", "value": "3000" },
+    { "key": "JIRA_URL", "value": "https://dev-jira.example.com" },
+    { "key": "JIRA_USER", "value": "dev_jira_user" },
+    { "key": "JIRA_TOKEN", "value": "dev_jira_token" },
+    { "key": "GITLAB_TOKEN", "value": "dev_gitlab_token" },
+    { "key": "GITLAB_HOST", "value": "https://gitlab.dev.example.com" },
+    { "key": "CONFLUENCE_URL", "value": "https://dev-confluence.example.com" },
     { "key": "project", "value": "" },
     { "key": "boardId", "value": "" },
     { "key": "piStartDate", "value": "" },
