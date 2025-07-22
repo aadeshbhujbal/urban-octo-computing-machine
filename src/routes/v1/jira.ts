@@ -71,11 +71,11 @@ const router = Router();
  *       - Jira
  *     parameters:
  *       - in: query
- *         name: project
+ *         name: jql
  *         schema:
  *           type: string
  *         required: true
- *         description: Jira project key
+ *         description: Jira Query Language (JQL) string, e.g. 'project=FRN'
  *     responses:
  *       200:
  *         description: Issues array
@@ -95,16 +95,16 @@ const router = Router();
  * /api/v1/jira/epics:
  *   get:
  *     summary: Get Jira epics
- *     description: Returns a list of epics for a Jira project.
+ *     description: Returns a list of epics for a Jira board.
  *     tags:
  *       - Jira
  *     parameters:
  *       - in: query
- *         name: project
+ *         name: boardId
  *         schema:
  *           type: string
  *         required: true
- *         description: Jira project key
+ *         description: Jira board ID
  *     responses:
  *       200:
  *         description: Epics array

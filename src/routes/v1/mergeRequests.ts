@@ -35,7 +35,7 @@ const router = Router();
  *         description: End date (YYYY-MM-DD)
  *     responses:
  *       200:
- *         description: Analytics summary
+ *         description: Merge request analytics with heatmap data
  *         content:
  *           application/json:
  *             schema:
@@ -67,13 +67,12 @@ const router = Router();
  *                 totalComments:
  *                   type: integer
  *       400:
- *         description: Missing required query params
+ *         description: Missing required parameters
  *       500:
  *         description: Server error
  */
 router.get('/heatmap', async (req, res) => {
   try {
-    // Accept groupId, startDate, endDate as query params
     const { groupId, startDate, endDate } = req.query;
     if (!groupId || !startDate || !endDate) {
       return res.status(400).json({ error: 'Missing required query params: groupId, startDate, endDate' });
@@ -93,8 +92,8 @@ router.get('/heatmap', async (req, res) => {
  * @swagger
  * /api/v1/merge-requests/analytics:
  *   get:
- *     summary: Get per-merge-request analytics
- *     description: Returns analytics for each merge request (author, status, project, etc.) for a GitLab group and date range.
+ *     summary: Get detailed merge request analytics
+ *     description: Returns detailed analytics for merge requests including approval times and commit metrics.
  *     tags:
  *       - Merge Requests
  *     parameters:
@@ -120,7 +119,7 @@ router.get('/heatmap', async (req, res) => {
  *         description: End date (YYYY-MM-DD)
  *     responses:
  *       200:
- *         description: Merge request analytics
+ *         description: Detailed merge request analytics
  *         content:
  *           application/json:
  *             schema:
@@ -129,7 +128,7 @@ router.get('/heatmap', async (req, res) => {
  *                 type: object
  *                 properties:
  *                   id:
- *                     type: integer
+ *                     type: string
  *                   status:
  *                     type: string
  *                   title:
@@ -138,18 +137,22 @@ router.get('/heatmap', async (req, res) => {
  *                     type: string
  *                   created_at:
  *                     type: string
+ *                     format: date-time
  *                   updated_at:
  *                     type: string
+ *                     format: date-time
  *                   project:
  *                     type: string
  *                   approval_duration:
  *                     type: number
+ *                     description: Time in hours from creation to merge
  *                   last_commit_to_merge:
  *                     type: number
- *     400:
- *       description: Missing required query params
- *     500:
- *       description: Server error
+ *                     description: Time in hours from last commit to merge
+ *       400:
+ *         description: Missing required parameters
+ *       500:
+ *         description: Server error
  */
 router.get('/analytics', async (req, res) => {
   try {
