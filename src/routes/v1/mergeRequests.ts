@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getMergeRequestsHeatmap, getMergeRequestsAnalytics } from '../../services/mergeRequestsService';
-import { exportMergeRequestsCsv } from '../../controllers/v1/mergeRequestsService';
+import { exportMergeRequestsCsv } from '../../controllers/v1/mergeRequestsExportController';
 
 const router = Router();
 
