@@ -14,7 +14,7 @@ const router = Router();
  *       - Merge Requests
  *     parameters:
  *       - in: query
- *         name: groupId
+ *         name: groupId  
  *         schema:
  *           type: string
  *         required: true
