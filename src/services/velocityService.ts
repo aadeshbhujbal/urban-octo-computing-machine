@@ -28,7 +28,13 @@ export async function getVelocitySummary(options: VelocitySummaryOptions): Promi
     const assignees = new Set(
       (issues || []).map((issue: any) => issue.fields.assignee?.accountId).filter(Boolean)
     );
-    // 4. Get added story points (issues created after sprint start)
+    const teamMembers = assignees.size || 15; // Default to 15 if no team members found
+
+    // 4. Calculate allotted and optimal story points
+    const allottedStoryPoints = teamMembers * 8;  // 8 SP per team member
+    const optimalStoryPoints = teamMembers * 5;   // 5 SP per team member
+
+    // 5. Get added story points (issues created after sprint start)
     let addedStoryPoints = 0;
     for (const issue of issues || []) {
       const created = new Date(issue.fields.created || '');
@@ -37,8 +43,12 @@ export async function getVelocitySummary(options: VelocitySummaryOptions): Promi
         addedStoryPoints += issue.fields.customfield_10002 || 0;
       }
     }
-    // 5. Calculate efficiency
+
+    // 6. Calculate efficiencies and spillover
     const efficiency = committed > 0 ? Math.round((completed / committed) * 100) : 0;
+    const efficiencyBasedOnAllotted = allottedStoryPoints > 0 ? Math.round((completed / allottedStoryPoints) * 100) : 0;
+    const spillover = Math.max(0, committed - completed);
+
     sprintVelocities.push({
       sprintId: sprint.id,
       sprintName: sprint.name || '',
@@ -46,14 +56,24 @@ export async function getVelocitySummary(options: VelocitySummaryOptions): Promi
       endDate: sprint.endDate || '',
       committed,
       completed,
-      teamMembers: assignees.size,
+      teamMembers,
       addedStoryPoints,
       efficiency,
+      allottedStoryPoints,
+      optimalStoryPoints,
+      efficiencyBasedOnAllotted,
+      spillover
     });
   }
+
+  // 7. Calculate latest sprint efficiency for summary
+  const latestSprint = sprintVelocities[0];
+  const summaryEfficiency = latestSprint ? latestSprint.efficiency : 0;
+
   return {
     sprints: sprintVelocities,
     boardId,
-    summary: `Velocity summary for board ${boardId}`,
+    summary: `Velocity summary for board ${boardId} (Latest Sprint Efficiency: ${summaryEfficiency}%)`,
+    latestSprintEfficiency: summaryEfficiency
   };
 } 

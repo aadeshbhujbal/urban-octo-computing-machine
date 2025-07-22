@@ -8,7 +8,7 @@ const router = Router();
  * /api/v1/velocity/summary:
  *   get:
  *     summary: Get velocity and spillover analytics
- *     description: Returns velocity, efficiency, spillover, and team size for a Jira board and sprints.
+ *     description: Returns velocity, efficiency, spillover, and team size metrics for a Jira board's sprints.
  *     tags:
  *       - Velocity
  *     parameters:
@@ -23,22 +23,23 @@ const router = Router();
  *         schema:
  *           type: integer
  *         required: false
- *         description: Number of sprints to include
+ *         default: 6
+ *         description: Number of sprints to analyze (default 6)
  *       - in: query
  *         name: year
  *         schema:
  *           type: integer
  *         required: false
- *         description: Year to filter sprints
+ *         description: Filter sprints by year (e.g., 2024)
  *       - in: query
  *         name: sprintPrefix
  *         schema:
  *           type: string
  *         required: false
- *         description: Sprint name prefix to filter
+ *         description: Filter sprints by name prefix
  *     responses:
  *       200:
- *         description: Velocity analytics summary
+ *         description: Velocity and spillover analytics
  *         content:
  *           application/json:
  *             schema:
@@ -55,24 +56,31 @@ const router = Router();
  *                         type: string
  *                       startDate:
  *                         type: string
+ *                         format: date-time
  *                       endDate:
  *                         type: string
+ *                         format: date-time
  *                       committed:
  *                         type: integer
+ *                         description: Story points committed at sprint start
  *                       completed:
  *                         type: integer
+ *                         description: Story points completed by sprint end
  *                       teamMembers:
  *                         type: integer
+ *                         description: Number of team members in sprint
  *                       addedStoryPoints:
  *                         type: integer
+ *                         description: Story points added after sprint start
  *                       efficiency:
  *                         type: integer
+ *                         description: Sprint completion efficiency (%)
  *                 boardId:
  *                   type: string
  *                 summary:
  *                   type: string
  *       400:
- *         description: Missing required query param
+ *         description: Missing required parameters
  *       500:
  *         description: Server error
  */

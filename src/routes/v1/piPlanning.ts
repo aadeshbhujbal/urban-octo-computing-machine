@@ -8,7 +8,7 @@ const router = Router();
  * /api/v1/pi-planning/summary:
  *   get:
  *     summary: Get PI Planning analytics summary
- *     description: Returns PI Planning summary including releases, sprints, issues, story points, RAG status, epic/sprint breakdowns, burn-up, RAID, WSJF, PI Scope, and Progress.
+ *     description: Returns comprehensive PI Planning analytics including releases, sprints, story points, RAG status, and epic breakdowns.
  *     tags:
  *       - PI Planning
  *     parameters:
@@ -17,7 +17,7 @@ const router = Router();
  *         schema:
  *           type: string
  *         required: true
- *         description: Jira project key
+ *         description: Jira project key or name
  *       - in: query
  *         name: boardId
  *         schema:
@@ -48,36 +48,83 @@ const router = Router();
  *               properties:
  *                 releases:
  *                   type: array
+ *                   description: List of releases in the PI date range
  *                   items:
  *                     type: object
+ *                     properties:
+ *                       id: 
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       startDate:
+ *                         type: string
+ *                       releaseDate:
+ *                         type: string
+ *                       released:
+ *                         type: boolean
+ *                       overdue:
+ *                         type: boolean
  *                 sprints:
  *                   type: array
+ *                   description: List of sprints in the PI date range
  *                   items:
  *                     type: object
- *                 issues:
- *                   type: array
- *                   items:
- *                     type: object
- *                 storyPoints:
- *                   type: integer
+ *                     properties:
+ *                       id:
+ *                         type: number
+ *                       name:
+ *                         type: string
+ *                       startDate:
+ *                         type: string
+ *                       endDate:
+ *                         type: string
+ *                 totalStoryPoints:
+ *                   type: number
+ *                   description: Total story points in the PI
+ *                 completedStoryPoints:
+ *                   type: number
+ *                   description: Completed story points
+ *                 inProgressStoryPoints:
+ *                   type: number
+ *                   description: Story points in progress
+ *                 toDoStoryPoints:
+ *                   type: number
+ *                   description: Story points to do
+ *                 completedPercentage:
+ *                   type: number
+ *                   description: Percentage of completed story points
  *                 ragStatus:
  *                   type: string
- *                 epicBreakdown:
+ *                   description: RAG status (Red/Amber/Green)
+ *                   enum: [Red, Amber, Green, PI Planning]
+ *                 epicProgress:
  *                   type: object
- *                 sprintBreakdown:
- *                   type: object
- *                 burnup:
- *                   type: object
- *                 raid:
- *                   type: object
- *                 wsjf:
- *                   type: object
- *                 piScope:
- *                   type: object
- *                 progress:
- *                   type: object
+ *                   description: Progress breakdown by epic
+ *                   additionalProperties:
+ *                     type: object
+ *                     properties:
+ *                       completed:
+ *                         type: number
+ *                       inProgress:
+ *                         type: number
+ *                       toDo:
+ *                         type: number
+ *                       total:
+ *                         type: number
+ *                       completedPct:
+ *                         type: number
+ *                       rag:
+ *                         type: string
+ *                       raid:
+ *                         type: string
+ *                       wsjf:
+ *                         type: string
+ *                       piScope:
+ *                         type: string
+ *                       progress:
+ *                         type: string
  *       400:
- *         description: Missing required query params
+ *         description: Missing required parameters
  *       500:
  *         description: Server error
  */

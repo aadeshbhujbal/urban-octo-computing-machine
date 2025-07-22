@@ -15,10 +15,15 @@ export interface SprintVelocity {
   teamMembers: number;
   addedStoryPoints: number;
   efficiency: number;
+  allottedStoryPoints: number;
+  optimalStoryPoints: number;
+  efficiencyBasedOnAllotted: number;
+  spillover: number;
 }
 
 export interface VelocitySummaryResult {
   sprints: SprintVelocity[];
   boardId: string;
   summary: string;
+  latestSprintEfficiency: number;
 } 

@@ -31,12 +31,29 @@
           "port": "3000",
           "path": ["api", "v1", "pi-planning", "summary"],
           "query": [
-            { "key": "project", "value": "{{project}}" },
-            { "key": "boardId", "value": "{{boardId}}" },
-            { "key": "piStartDate", "value": "{{piStartDate}}" },
-            { "key": "piEndDate", "value": "{{piEndDate}}" }
+            {
+              "key": "project",
+              "value": "{{project}}",
+              "description": "Jira project key or name"
+            },
+            {
+              "key": "boardId",
+              "value": "{{boardId}}",
+              "description": "Jira board ID"
+            },
+            {
+              "key": "piStartDate",
+              "value": "{{piStartDate}}",
+              "description": "PI start date (YYYY-MM-DD)"
+            },
+            {
+              "key": "piEndDate",
+              "value": "{{piEndDate}}",
+              "description": "PI end date (YYYY-MM-DD)"
+            }
           ]
-        }
+        },
+        "description": "Returns comprehensive PI Planning analytics including releases, sprints, story points, RAG status, and epic breakdowns."
       }
     },
     {
@@ -51,11 +68,56 @@
           "port": "3000",
           "path": ["api", "v1", "merge-requests", "heatmap"],
           "query": [
-            { "key": "groupId", "value": "{{groupId}}" },
-            { "key": "startDate", "value": "{{startDate}}" },
-            { "key": "endDate", "value": "{{endDate}}" }
+            {
+              "key": "groupId",
+              "value": "{{groupId}}",
+              "description": "GitLab group ID or path"
+            },
+            {
+              "key": "startDate",
+              "value": "{{startDate}}",
+              "description": "Start date (YYYY-MM-DD)"
+            },
+            {
+              "key": "endDate",
+              "value": "{{endDate}}",
+              "description": "End date (YYYY-MM-DD)"
+            }
           ]
-        }
+        },
+        "description": "Returns per-user merge request, commit, approval, and comment stats for a GitLab group and date range."
+      }
+    },
+    {
+      "name": "Merge Requests Analytics",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/merge-requests/analytics?groupId={{groupId}}&startDate={{startDate}}&endDate={{endDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "merge-requests", "analytics"],
+          "query": [
+            {
+              "key": "groupId",
+              "value": "{{groupId}}",
+              "description": "GitLab group ID or path"
+            },
+            {
+              "key": "startDate",
+              "value": "{{startDate}}",
+              "description": "Start date (YYYY-MM-DD)"
+            },
+            {
+              "key": "endDate",
+              "value": "{{endDate}}",
+              "description": "End date (YYYY-MM-DD)"
+            }
+          ]
+        },
+        "description": "Returns detailed analytics for merge requests including approval times and commit metrics."
       }
     },
     {
@@ -70,12 +132,29 @@
           "port": "3000",
           "path": ["api", "v1", "velocity", "summary"],
           "query": [
-            { "key": "boardId", "value": "{{boardId}}" },
-            { "key": "numSprints", "value": "{{numSprints}}" },
-            { "key": "year", "value": "{{year}}" },
-            { "key": "sprintPrefix", "value": "{{sprintPrefix}}" }
+            {
+              "key": "boardId",
+              "value": "{{boardId}}",
+              "description": "Jira board ID"
+            },
+            {
+              "key": "numSprints",
+              "value": "{{numSprints}}",
+              "description": "Number of sprints to analyze (default 6)"
+            },
+            {
+              "key": "year",
+              "value": "{{year}}",
+              "description": "Filter sprints by year (e.g., 2024)"
+            },
+            {
+              "key": "sprintPrefix",
+              "value": "{{sprintPrefix}}",
+              "description": "Filter sprints by name prefix"
+            }
           ]
-        }
+        },
+        "description": "Returns velocity, efficiency, spillover, and team size metrics for a Jira board's sprints."
       }
     },
     {
