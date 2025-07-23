@@ -93,13 +93,21 @@ export async function getIssuesFromJira(jql: string): Promise<JiraIssue[]> {
           'parent',
           'assignee',
           'created',
+          'updated',
           'customfield_10341', // Sprint
           'customfield_30160', // RAID
           'customfield_42105', // WSJF
           'customfield_20046', // PI Scope
           'customfield_30195', // Progress
           'issuetype',
-          'project'
+          'project',
+          'fixVersions',
+          'components',
+          'priority',
+          'labels',
+          'description',
+          'resolution',
+          'resolutiondate'
         ]
       },
     });
