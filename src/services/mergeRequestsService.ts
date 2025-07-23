@@ -478,10 +478,10 @@ export async function getMergeRequestsHeatmap(options: MergeRequestsHeatmapOptio
           const lastActive = new Date(userStats[noteUsername].lastActiveDate!);
           if (noteDate > lastActive) {
             userStats[noteUsername].lastActiveDate = format(noteDate, 'yyyy-MM-dd');
-          }
         }
       }
     }
+  }
   }
 
   // Calculate contribution scores
@@ -575,4 +575,4 @@ export async function testGitlabConnection(): Promise<{ status: string; message:
   } catch (error: any) {
     return { status: 'error', message: error.message };
   }
-} 
+}

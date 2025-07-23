@@ -63,11 +63,41 @@ export async function getSprintsFromJira(boardId: string, state: string = 'activ
   if (!JIRA_URL || !JIRA_USER || !JIRA_TOKEN) {
     throw new Error('Jira credentials are not set in environment variables');
   }
-  const resp = await axios.get(`${JIRA_URL}/rest/agile/1.0/board/${boardId}/sprint`, {
-    auth: { username: JIRA_USER, password: JIRA_TOKEN },
-    params: { state },
+
+  const sprints: JiraSprint[] = [];
+  let startAt = 0;
+  const maxResults = 50;
+
+  while (true) {
+    try {
+      const resp = await axios.get(`${JIRA_URL}/rest/agile/1.0/board/${boardId}/sprint`, {
+        auth: { username: JIRA_USER, password: JIRA_TOKEN },
+        params: { 
+          state,
+          startAt,
+          maxResults
+        },
+      });
+
+      const data = resp.data as { values: JiraSprint[]; isLast: boolean };
+      if (!data.values || data.values.length === 0) break;
+
+      sprints.push(...data.values);
+      
+      if (data.isLast) break;
+      startAt += data.values.length;
+    } catch (error) {
+      console.error(`Error fetching sprints for board ${boardId}:`, error);
+      break;
+    }
+  }
+
+  // Sort sprints by start date
+  return sprints.sort((a, b) => {
+    const aDate = a.startDate ? new Date(a.startDate).getTime() : 0;
+    const bDate = b.startDate ? new Date(b.startDate).getTime() : 0;
+    return bDate - aDate; // Most recent first
   });
-  return ((resp.data as { values: JiraSprint[] }).values) || [];
 }
 
 export async function getIssuesFromJira(jql: string): Promise<JiraIssue[]> {

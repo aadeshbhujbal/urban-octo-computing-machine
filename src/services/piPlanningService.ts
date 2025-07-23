@@ -43,7 +43,9 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
     const sprintEnd = new Date(sprint.endDate);
     const piStart = new Date(piStartDate);
     const piEnd = new Date(piEndDate);
-    return sprintStart >= piStart && sprintEnd <= piEnd;
+    
+    // Include sprints that overlap with the PI period
+    return (sprintStart <= piEnd && sprintEnd >= piStart);
   });
 
   // Check if we have any sprints in the PI date range
@@ -77,7 +79,19 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
   }
 
   // 4. Fetch issues for the project and filtered sprints
-  const jql = `project = "${project}" AND issuetype in (Story, Bug, "User Story", Task) AND (created >= "${piStartDate}" AND created <= "${piEndDate}" OR updated >= "${piStartDate}" AND updated <= "${piEndDate}")`;
+  const sprintIds = filteredSprints.map(s => s.id);
+  const sprintClause = sprintIds.length > 0 ? `OR Sprint in (${sprintIds.join(',')})` : '';
+  
+  const jql = `project = "${project}" 
+    AND issuetype in (Story, Bug, "User Story", Task) 
+    AND (
+      (created >= "${piStartDate}" AND created <= "${piEndDate}")
+      OR (updated >= "${piStartDate}" AND updated <= "${piEndDate}")
+      OR (resolutiondate >= "${piStartDate}" AND resolutiondate <= "${piEndDate}")
+      ${sprintClause}
+    )`;
+  
+  console.log('JQL Query:', jql); // For debugging
   const issues = await getIssuesFromJira(jql);
 
   // 5. Calculate story points and group by status
@@ -251,7 +265,6 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
     if (data.progress) progress[epic] = data.progress;
   }
 
-  // Update the return object to match the field names expected by the endpoints
   return {
     releases,
     sprints: filteredSprints,
