@@ -153,16 +153,38 @@ const getSummaryField = (field: string) => async (req: any, res: any) => {
     if (!project || !boardId || !piStartDate || !piEndDate) {
       return res.status(400).json({ error: 'Missing required query params: project, boardId, piStartDate, piEndDate' });
     }
+
+    // Map the endpoint names to the actual field names in the response
+    const fieldMapping: Record<string, string> = {
+      'sprints': 'sprints',
+      'issues': 'issues',
+      'story-points': 'storyPoints',
+      'rag-status': 'ragStatus',
+      'epic-breakdown': 'epicBreakdown',
+      'sprint-breakdown': 'sprintBreakdown',
+      'burnup': 'burnup',
+      'raid': 'raid',
+      'wsjf': 'wsjf',
+      'pi-scope': 'piScope',
+      'progress': 'progress',
+      'releases': 'releases'
+    };
+
+    const actualField = fieldMapping[field] || field;
+
     const result = await piPlanningSummaryService({
       project: project as string,
       boardId: boardId as string,
       piStartDate: piStartDate as string,
       piEndDate: piEndDate as string,
     });
-    if (!(field in result)) {
+
+    if (!(actualField in result)) {
       return res.status(404).json({ error: `Field ${field} not found in summary` });
     }
-    res.json({ [field]: (result as any)[field] });
+
+    // Use type assertion to handle dynamic field access
+    res.json({ [field]: (result as Record<string, any>)[actualField] });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
@@ -377,7 +399,7 @@ router.get('/issues', getSummaryField('issues'));
  *       500:
  *         description: Server error
  */
-router.get('/story-points', getSummaryField('storyPoints'));
+router.get('/story-points', getSummaryField('story-points'));
 /**
  * @swagger
  * /api/v1/pi-planning/rag-status:
@@ -428,7 +450,7 @@ router.get('/story-points', getSummaryField('storyPoints'));
  *       500:
  *         description: Server error
  */
-router.get('/rag-status', getSummaryField('ragStatus'));
+router.get('/rag-status', getSummaryField('rag-status'));
 /**
  * @swagger
  * /api/v1/pi-planning/epic-breakdown:
@@ -479,7 +501,7 @@ router.get('/rag-status', getSummaryField('ragStatus'));
  *       500:
  *         description: Server error
  */
-router.get('/epic-breakdown', getSummaryField('epicBreakdown'));
+router.get('/epic-breakdown', getSummaryField('epic-breakdown'));
 /**
  * @swagger
  * /api/v1/pi-planning/sprint-breakdown:
@@ -530,7 +552,7 @@ router.get('/epic-breakdown', getSummaryField('epicBreakdown'));
  *       500:
  *         description: Server error
  */
-router.get('/sprint-breakdown', getSummaryField('sprintBreakdown'));
+router.get('/sprint-breakdown', getSummaryField('sprint-breakdown'));
 /**
  * @swagger
  * /api/v1/pi-planning/burnup:
@@ -734,7 +756,7 @@ router.get('/wsjf', getSummaryField('wsjf'));
  *       500:
  *         description: Server error
  */
-router.get('/pi-scope', getSummaryField('piScope'));
+router.get('/pi-scope', getSummaryField('pi-scope'));
 /**
  * @swagger
  * /api/v1/pi-planning/progress:
