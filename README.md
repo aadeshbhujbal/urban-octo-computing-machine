@@ -63,3 +63,13 @@ Chart/image endpoints (wordcloud, bar/velocity charts) are not available in this
 ---
 
 **No UI is included. This is a backend microservice only.** 
+
+GET http://localhost:3000/api/v1/pi-planning/sprints?project=FRN&boardId=59059&piStartDate=2024-01-01&piEndDate=2024-03-31
+GET http://localhost:3000/api/v1/pi-planning/story-points?project=FRN&boardId=59059&piStartDate=2024-01-01&piEndDate=2024-03-31
+GET http://localhost:3000/api/v1/pi-planning/epic-breakdown?project=FRN&boardId=59059&piStartDate=2024-01-01&piEndDate=2024-03-31
+GET http://localhost:3000/api/v1/pi-planning/sprint-breakdown?project=FRN&boardId=59059&piStartDate=2024-01-01&piEndDate=2024-03-31
+GET http://localhost:3000/api/v1/pi-planning/burnup?project=FRN&boardId=59059&piStartDate=2024-01-01&piEndDate=2024-03-31
+GET http://localhost:3000/api/v1/pi-planning/raid?project=FRN&boardId=59059&piStartDate=2024-01-01&piEndDate=2024-03-31
+GET http://localhost:3000/api/v1/pi-planning/wsjf?project=FRN&boardId=59059&piStartDate=2024-01-01&piEndDate=2024-03-31
+GET http://localhost:3000/api/v1/pi-planning/pi-scope?project=FRN&boardId=59059&piStartDate=2024-01-01&piEndDate=2024-03-31
+GET http://localhost:3000/api/v1/pi-planning/progress?project=FRN&boardId=59059&piStartDate=2024-01-01&piEndDate=2024-03-31

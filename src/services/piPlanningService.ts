@@ -39,10 +39,11 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
   // 3. Filter sprints by PI date range (if dates are provided)
   const filteredSprints = sprints.filter(sprint => {
     if (!sprint.startDate || !sprint.endDate) return false;
-    return (
-      sprint.startDate >= piStartDate &&
-      sprint.endDate <= piEndDate
-    );
+    const sprintStart = new Date(sprint.startDate);
+    const sprintEnd = new Date(sprint.endDate);
+    const piStart = new Date(piStartDate);
+    const piEnd = new Date(piEndDate);
+    return sprintStart >= piStart && sprintEnd <= piEnd;
   });
 
   // Check if we have any sprints in the PI date range
@@ -51,14 +52,14 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
       releases,
       sprints: [],
       issues: [],
-      totalStoryPoints: 0,
+      storyPoints: 0,
       completedStoryPoints: 0,
       inProgressStoryPoints: 0,
       toDoStoryPoints: 0,
       completedPercentage: 0,
       ragStatus: 'Red',
-      epicStoryPoints: {},
-      sprintStoryPoints: {},
+      epicBreakdown: {},
+      sprintBreakdown: {},
       currentSprints: [],
       previousSprints: [],
       futureSprints: [],
@@ -68,12 +69,15 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
       burnup: [],
       storyPointsCurrent: 0,
       epicProgress: {},
+      raid: {},
+      wsjf: {},
+      piScope: {},
+      progress: {}
     };
   }
 
   // 4. Fetch issues for the project and filtered sprints
-  const sprintIds = filteredSprints.map(s => s.id);
-  const jql = `project = "${project}" AND issuetype in (Story, Bug, \"User Story\",Task) AND Sprint in (${sprintIds.join(',')})`;
+  const jql = `project = "${project}" AND issuetype in (Story, Bug, "User Story", Task) AND (created >= "${piStartDate}" AND created <= "${piEndDate}" OR updated >= "${piStartDate}" AND updated <= "${piEndDate}")`;
   const issues = await getIssuesFromJira(jql);
 
   // 5. Calculate story points and group by status
@@ -233,18 +237,33 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
     };
   }
 
+  // 13. Prepare RAID, WSJF, PI Scope, and Progress summaries
+  const raid: Record<string, string> = {};
+  const wsjf: Record<string, string> = {};
+  const piScope: Record<string, string> = {};
+  const progress: Record<string, string> = {};
+
+  for (const epic in epicAdvanced) {
+    const data = epicAdvanced[epic];
+    if (data.raid) raid[epic] = data.raid;
+    if (data.wsjf) wsjf[epic] = data.wsjf;
+    if (data.piScope) piScope[epic] = data.piScope;
+    if (data.progress) progress[epic] = data.progress;
+  }
+
+  // Update the return object to match the field names expected by the endpoints
   return {
     releases,
     sprints: filteredSprints,
     issues,
-    totalStoryPoints,
+    storyPoints: totalStoryPoints,
     completedStoryPoints,
     inProgressStoryPoints,
     toDoStoryPoints,
     completedPercentage,
     ragStatus,
-    epicStoryPoints,
-    sprintStoryPoints,
+    epicBreakdown: epicStoryPoints,
+    sprintBreakdown: sprintStoryPoints,
     currentSprints,
     previousSprints,
     futureSprints,
@@ -254,6 +273,9 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
     burnup,
     storyPointsCurrent,
     epicProgress,
-    // Add more summary/calculation fields as you port more logic
+    raid,
+    wsjf,
+    piScope,
+    progress
   };
 } 
