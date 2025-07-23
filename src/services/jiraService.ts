@@ -59,7 +59,7 @@ export async function getReleasesFromJira(projectName?: string): Promise<JiraVer
   }));
 }
 
-export async function getSprintsFromJira(boardId: string, state: string = 'active'): Promise<JiraSprint[]> {
+export async function getSprintsFromJira(boardId: string, state: string = 'active,closed,future'): Promise<JiraSprint[]> {
   if (!JIRA_URL || !JIRA_USER || !JIRA_TOKEN) {
     throw new Error('Jira credentials are not set in environment variables');
   }
@@ -86,7 +86,21 @@ export async function getIssuesFromJira(jql: string): Promise<JiraIssue[]> {
         jql,
         startAt,
         maxResults,
-        fields: ['summary', 'status', 'customfield_10002', 'parent', 'assignee', 'created']  // Add fields we commonly need
+        fields: [
+          'summary',
+          'status',
+          'customfield_10002', // Story Points
+          'parent',
+          'assignee',
+          'created',
+          'customfield_10341', // Sprint
+          'customfield_30160', // RAID
+          'customfield_42105', // WSJF
+          'customfield_20046', // PI Scope
+          'customfield_30195', // Progress
+          'issuetype',
+          'project'
+        ]
       },
     });
 

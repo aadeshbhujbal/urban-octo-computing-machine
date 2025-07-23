@@ -45,6 +45,32 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
     );
   });
 
+  // Check if we have any sprints in the PI date range
+  if (filteredSprints.length === 0) {
+    return {
+      releases,
+      sprints: [],
+      issues: [],
+      totalStoryPoints: 0,
+      completedStoryPoints: 0,
+      inProgressStoryPoints: 0,
+      toDoStoryPoints: 0,
+      completedPercentage: 0,
+      ragStatus: 'Red',
+      epicStoryPoints: {},
+      sprintStoryPoints: {},
+      currentSprints: [],
+      previousSprints: [],
+      futureSprints: [],
+      currentSprintStats: { groupTotal: 0, groupCompleted: 0, groupInProgress: 0, groupToDo: 0 },
+      previousSprintStats: { groupTotal: 0, groupCompleted: 0, groupInProgress: 0, groupToDo: 0 },
+      futureSprintStats: { groupTotal: 0, groupCompleted: 0, groupInProgress: 0, groupToDo: 0 },
+      burnup: [],
+      storyPointsCurrent: 0,
+      epicProgress: {},
+    };
+  }
+
   // 4. Fetch issues for the project and filtered sprints
   const sprintIds = filteredSprints.map(s => s.id);
   const jql = `project = "${project}" AND issuetype in (Story, Bug, \"User Story\",Task) AND Sprint in (${sprintIds.join(',')})`;
