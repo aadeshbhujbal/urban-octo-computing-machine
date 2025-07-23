@@ -14,7 +14,7 @@ router.use('/api/v1/reports', htmlReportRoutes);
 router.use('/api/v1/confluence', confluenceRoutes);
 router.use('/api/v1/csv', csvExportRoutes);
 router.use('/api/v1/merge-requests', mergeRequestsRoutes);
-router.use('/api/v1/charts', velocityRoutes);
+router.use('/api/v1/velocity', velocityRoutes);
 router.use('/api/v1/pi-planning', piPlanningRoutes);
 
 export default router; 
