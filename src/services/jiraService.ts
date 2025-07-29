@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { JiraProject, JiraVersion, JiraSprint, JiraIssue, JiraEpic } from '../types/jira';
+import { JiraProject, JiraVersion, JiraSprint, JiraIssue, JiraEpic, JiraIssueFields } from '../types/jira';
 
 const JIRA_URL = process.env.JIRA_URL;
 const JIRA_USER = process.env.JIRA_USER;
@@ -158,25 +158,25 @@ export async function getEpicsFromJira(boardId: string): Promise<JiraEpic[]> {
     throw new Error('Jira credentials are not set in environment variables');
   }
 
-  // First get the project key for the board
-  const boardResp = await axios.get(`${JIRA_URL}/rest/agile/1.0/board/${boardId}`, {
+  // Get the project key for the board
+  const boardResponse = await axios.get(`${JIRA_URL}/rest/agile/1.0/board/${boardId}`, {
     auth: { username: JIRA_USER, password: JIRA_TOKEN },
   });
-  const projectKey = (boardResp.data as { location: { projectKey: string } }).location.projectKey;
+  const projectKey = (boardResponse.data as { location: { projectKey: string } }).location.projectKey;
 
-  // Then search for epics in that project
+  // Search for epics in that project
   const jql = `project = "${projectKey}" AND issuetype in (Epic, Feature) ORDER BY created DESC`;
-  const resp = await axios.get(`${JIRA_URL}/rest/api/3/search`, {
+  const response = await axios.get(`${JIRA_URL}/rest/api/3/search`, {
     auth: { username: JIRA_USER, password: JIRA_TOKEN },
     params: { jql, maxResults: 100 },
   });
 
-  return ((resp.data as { issues: any[] }).issues || []).map((issue) => ({
-    id: issue.id,
+  return ((response.data as { issues: JiraIssue[] }).issues || []).map((issue: JiraIssue) => ({
+    id: Number(issue.id),
     key: issue.key,
-    name: issue.fields.summary,
+    name: issue.fields.summary || '',
     summary: issue.fields.summary,
-    done: issue.fields.status.statusCategory.key === 'done'
+    done: issue.fields.status?.statusCategory?.key === 'done',
   }));
 }
 
@@ -185,24 +185,32 @@ export async function getClosedSprintsFromJira(boardId: string): Promise<JiraSpr
   return getSprintsFromJira(boardId, 'closed');
 }
 
-export async function getSprintIssuesWithAssignee(sprintId: number): Promise<any[]> {
+export async function getSprintIssuesWithAssignee(sprintId: number): Promise<JiraIssue[]> {
   if (!JIRA_URL || !JIRA_USER || !JIRA_TOKEN) {
     throw new Error('Jira credentials are not set in environment variables');
   }
-  const resp = await axios.get(`${JIRA_URL}/rest/agile/1.0/sprint/${sprintId}/issue`, {
+  const response = await axios.get(`${JIRA_URL}/rest/agile/1.0/sprint/${sprintId}/issue`, {
     auth: { username: JIRA_USER, password: JIRA_TOKEN },
     params: { fields: 'assignee,created,customfield_10002' },
   });
-  return ((resp.data as { issues: any[] }).issues) || [];
+  return ((response.data as { issues: JiraIssue[] }).issues) || [];
 }
 
-export async function getVelocityStatsFromJira(boardId: string): Promise<any> {
+export interface JiraVelocityStats {
+  velocityStatEntries: Record<string, {
+    estimated: { value: number };
+    completed: { value: number };
+  }>;
+  sprints: JiraSprint[];
+}
+
+export async function getVelocityStatsFromJira(boardId: string): Promise<JiraVelocityStats> {
   if (!JIRA_URL || !JIRA_USER || !JIRA_TOKEN) {
     throw new Error('Jira credentials are not set in environment variables');
   }
-  const resp = await axios.get(`${JIRA_URL}/rest/greenhopper/1.0/rapid/charts/velocity`, {
+  const response = await axios.get(`${JIRA_URL}/rest/greenhopper/1.0/rapid/charts/velocity`, {
     auth: { username: JIRA_USER, password: JIRA_TOKEN },
     params: { rapidViewId: boardId },
   });
-  return resp.data;
+  return response.data as JiraVelocityStats;
 } 

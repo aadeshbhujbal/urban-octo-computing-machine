@@ -508,7 +508,27 @@ export async function getMergeRequestsHeatmap(options: MergeRequestsHeatmapOptio
   };
 }
 
-export async function getMergeRequestsAnalytics(options: MergeRequestsHeatmapOptions): Promise<any[]> {
+// Add enum for MR status
+export enum MergeRequestStatus {
+  Opened = 'opened',
+  Closed = 'closed',
+  Merged = 'merged',
+  Locked = 'locked',
+}
+
+export interface MergeRequestAnalytics {
+  id: number;
+  status: MergeRequestStatus;
+  title: string;
+  author: string;
+  created_at: string;
+  updated_at: string;
+  project: string;
+  approval_duration: number | null;
+  last_commit_to_merge: number | null;
+}
+
+export async function getMergeRequestsAnalytics(options: MergeRequestsHeatmapOptions): Promise<MergeRequestAnalytics[]> {
   const { groupId, startDate, endDate } = options;
   const token = process.env.GITLAB_TOKEN;
   if (!token) throw new Error('GITLAB_TOKEN not set in environment');
@@ -520,43 +540,43 @@ export async function getMergeRequestsAnalytics(options: MergeRequestsHeatmapOpt
 
   // Get all projects in the group
   const projects = await api.Groups.projects(groupId, { perPage: 100 });
-  const analytics: any[] = [];
+  const analytics: MergeRequestAnalytics[] = [];
 
   for (const project of projects) {
     // Get all merge requests in the date range
-    const mrs = await api.MergeRequests.all({
+    const mergeRequests = await api.MergeRequests.all({
       projectId: project.id,
       createdAfter: startOfDay(new Date(startDate)).toISOString(),
       createdBefore: endOfDay(new Date(endDate)).toISOString(),
       perPage: 100,
     });
-    for (const mr of mrs) {
-      const author = (mr.author && typeof mr.author.name === 'string') ? mr.author.name : 'Unknown';
-      const created_at = format(new Date(mr.created_at), 'yyyy-MM-dd\'T\'HH:mm:ss\'Z\'');
-      const updated_at = format(new Date(mr.updated_at), 'yyyy-MM-dd\'T\'HH:mm:ss\'Z\'');
-      let approval_duration = null;
-      if (mr.state === 'merged' && mr.merged_at) {
-        approval_duration = (new Date(mr.merged_at).getTime() - new Date(mr.created_at).getTime()) / (1000 * 60 * 60); // hours
+    for (const mergeRequest of mergeRequests) {
+      const author = (mergeRequest.author && typeof mergeRequest.author.name === 'string') ? mergeRequest.author.name : 'Unknown';
+      const createdAt = format(new Date(mergeRequest.created_at), 'yyyy-MM-dd\'T\'HH:mm:ss\'Z\'');
+      const updatedAt = format(new Date(mergeRequest.updated_at), 'yyyy-MM-dd\'T\'HH:mm:ss\'Z\'');
+      let approvalDuration: number | null = null;
+      if (mergeRequest.state === MergeRequestStatus.Merged && mergeRequest.merged_at) {
+        approvalDuration = (new Date(mergeRequest.merged_at).getTime() - new Date(mergeRequest.created_at).getTime()) / (1000 * 60 * 60); // hours
       }
       // Commits
-      let last_commit_to_merge = null;
+      let lastCommitToMerge: number | null = null;
       try {
-        const commits = await api.MergeRequests.commits(project.id, mr.iid);
+        const commits = await api.MergeRequests.commits(project.id, mergeRequest.iid);
         if (commits && commits.length > 0) {
-          const last_commit_date = new Date(commits[0].created_at);
-          last_commit_to_merge = (new Date(updated_at).getTime() - last_commit_date.getTime()) / (1000 * 60 * 60); // hours
+          const lastCommitDate = new Date(commits[0].created_at);
+          lastCommitToMerge = (new Date(updatedAt).getTime() - lastCommitDate.getTime()) / (1000 * 60 * 60); // hours
         }
       } catch {}
       analytics.push({
-        id: mr.iid,
-        status: mr.state,
-        title: mr.title,
+        id: mergeRequest.iid,
+        status: mergeRequest.state as MergeRequestStatus,
+        title: mergeRequest.title,
         author,
-        created_at,
-        updated_at,
+        created_at: createdAt,
+        updated_at: updatedAt,
         project: project.name || 'unknown',
-        approval_duration,
-        last_commit_to_merge,
+        approval_duration: approvalDuration,
+        last_commit_to_merge: lastCommitToMerge,
       });
     }
   }
