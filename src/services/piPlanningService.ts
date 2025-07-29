@@ -1,14 +1,14 @@
 import { getReleasesFromJira, getSprintsFromJira, getIssuesFromJira } from './jiraService';
 import { PiPlanningSummaryOptions, EpicAdvancedAnalytics } from '../types/piPlanning';
+import { JiraIssueStatusCategory, JiraSprintState } from '../types/jira';
 
-function processStoryPoints(sp: any): number {
-  // Python: if story_points % 1 == 0: story_points = int(story_points)
-  if (typeof sp === 'number') {
-    return Number.isInteger(sp) ? sp : Math.round(sp);
+function processStoryPoints(storyPoints: number | string | undefined | null): number {
+  if (typeof storyPoints === 'number') {
+    return Number.isInteger(storyPoints) ? storyPoints : Math.round(storyPoints);
   }
-  if (typeof sp === 'string') {
-    const n = parseFloat(sp);
-    return isNaN(n) ? 0 : Math.round(n);
+  if (typeof storyPoints === 'string') {
+    const parsed = parseFloat(storyPoints);
+    return isNaN(parsed) ? 0 : Math.round(parsed);
   }
   return 0;
 }
@@ -112,7 +112,12 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
     totalStoryPoints += sp;
     const status = (issue.fields.status?.name || '').toLowerCase();
     const epic = issue.fields.parent?.key || 'No Epic';
-    const sprintArr = issue.fields.customfield_10341 || [];
+    let sprintArr: Array<{ id: number; name: string }> = [];
+    if (Array.isArray(issue.fields.customfield_10341)) {
+      sprintArr = issue.fields.customfield_10341;
+    } else if (issue.fields.customfield_10341 && typeof issue.fields.customfield_10341 === 'object') {
+      sprintArr = [issue.fields.customfield_10341];
+    }
     // Use the latest sprint for grouping
     const sprintId = sprintArr.length > 0 ? sprintArr[sprintArr.length - 1]?.id?.toString() : 'No Sprint';
 
@@ -171,7 +176,12 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
     const ids = new Set(sprintGroup.map(s => s.id));
     let groupTotal = 0, groupCompleted = 0, groupInProgress = 0, groupToDo = 0;
     for (const issue of issues) {
-      const sprintArr = issue.fields.customfield_10341 || [];
+      let sprintArr: Array<{ id: number; name: string }> = [];
+      if (Array.isArray(issue.fields.customfield_10341)) {
+        sprintArr = issue.fields.customfield_10341;
+      } else if (issue.fields.customfield_10341 && typeof issue.fields.customfield_10341 === 'object') {
+        sprintArr = [issue.fields.customfield_10341];
+      }
       const sprintId = sprintArr.length > 0 ? sprintArr[sprintArr.length - 1]?.id : null;
       if (sprintId && ids.has(sprintId)) {
         const sp = processStoryPoints(issue.fields['customfield_10002']);
@@ -192,7 +202,7 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
   // 9. Calculate story points progress over time (burn-up)
   const burnup: Array<{ date: string; completed: number }> = [];
   let runningCompleted = 0;
-  const sortedSprints = [...filteredSprints].sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
+  const sortedSprints = [...filteredSprints].sort((sprintA, sprintB) => (sprintA.startDate || '').localeCompare(sprintB.startDate || ''));
   for (const sprint of sortedSprints) {
     const sprintId = sprint.id;
     const completed = sprintStoryPoints[sprintId]?.completed || 0;
