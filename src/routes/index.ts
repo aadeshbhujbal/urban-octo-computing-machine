@@ -6,6 +6,7 @@ import csvExportRoutes from './v1/csvExport';
 import mergeRequestsRoutes from './v1/mergeRequests';
 import velocityRoutes from './v1/velocity';
 import piPlanningRoutes from './v1/piPlanning';
+import currentRoutes from './v1/current';
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use('/api/v1/csv', csvExportRoutes);
 router.use('/api/v1/merge-requests', mergeRequestsRoutes);
 router.use('/api/v1/velocity', velocityRoutes);
 router.use('/api/v1/pi-planning', piPlanningRoutes);
+router.use('/current', currentRoutes);
 
 export default router; 
