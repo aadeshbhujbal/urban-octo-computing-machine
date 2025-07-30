@@ -155,7 +155,7 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
   // 9. Calculate story points progress over time (burn-up)
   const burnupData: Array<{ date: string; completed: number }> = [];
   let cumulativeCompletedStoryPoints = 0;
-  const chronologicallySortedSprints = [...filteredSprints].sort((sprintA, sprintB) => (sprintA.startDate || '').localeCompare(sprintB.startDate || ''));
+  const chronologicallySortedSprints = [...filteredSprints].sort((firstSprint, secondSprint) => (firstSprint.startDate || '').localeCompare(secondSprint.startDate || ''));
   for (const sprint of chronologicallySortedSprints) {
     const sprintId = sprint.id;
     const sprintCompletedStoryPoints = sprintStoryPoints[sprintId]?.completed || 0;

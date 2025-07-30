@@ -56,13 +56,13 @@ export async function getMilestones(options: MilestoneSummaryOptions): Promise<M
     }
 
     // Sort by end date (most recent first)
-    milestones.sort((milestoneA, milestoneB) => {
-          const milestoneADate = milestoneA.endDate ? new Date(milestoneA.endDate).getTime() : 0;
-    const milestoneBDate = milestoneB.endDate ? new Date(milestoneB.endDate).getTime() : 0;
-    return milestoneBDate - milestoneADate;
+    const chronologicallySortedMilestones = milestones.sort((firstMilestone, secondMilestone) => {
+      const firstMilestoneDate = firstMilestone.endDate ? new Date(firstMilestone.endDate).getTime() : 0;
+      const secondMilestoneDate = secondMilestone.endDate ? new Date(secondMilestone.endDate).getTime() : 0;
+      return secondMilestoneDate - firstMilestoneDate;
     });
 
-    return milestones;
+    return chronologicallySortedMilestones;
   } catch (error) {
     console.error('Error fetching milestones:', error);
     throw error;

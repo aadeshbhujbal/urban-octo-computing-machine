@@ -11,6 +11,7 @@ import {
   MergeRequestDetail
 } from '../types/mergeRequests';
 import { normalize as normalizeString } from 'path';
+import { fetchWithProxy } from '../utils/fetchWithProxy';
 
 type GitlabInstance = InstanceType<typeof Gitlab>;
 
@@ -201,36 +202,53 @@ function calculateLevenshteinDistance(s1: string, s2: string): number {
   return ((maxLength - distance) / maxLength) * 100;
 }
 
+/**
+ * Check if username is a bot (Python equivalent)
+ * Python: def is_bot(username):
+ */
 function isBot(username: string): boolean {
   const botKeywords = ['bot', 'security', 'system', 'pipeline', 'ci', 'auto'];
   return botKeywords.some(keyword => username.toLowerCase().includes(keyword));
 }
 
+/**
+ * Get default branch for a project (Python equivalent)
+ * Python: def get_default_branch(project):
+ */
+function getDefaultBranch(project: any): string {
+  return project.default_branch || 'main';
+}
+
+/**
+ * Check if comment is meaningful (Python equivalent)
+ * Python: def is_meaningful_comment(text):
+ */
 function isMeaningfulComment(text: string): boolean {
-  const meaninglessComments = [
-    'thank you', 'thanks', 'lgtm', 'looks good', 'good', '+1',
-    'approved', 'ship it', 'merge it', 'nice', 'ok', 'okay',
-    'sounds good', 'sg', 'r+', '👍', 'thumbs up', 'approved'
-  ];
-  
   if (!text || text.trim().length < 5) {
     return false;
   }
   
   const textLower = text.toLowerCase().trim();
   
-  // Check against meaningless comments
-  if (meaninglessComments.some(phrase => 
-    textLower === phrase || 
-    textLower.startsWith(phrase + ' ') || 
-    textLower.endsWith(' ' + phrase))) {
-    return false;
+  // Define meaningless comments to filter out
+  const meaninglessComments = [
+    "thank you", "thanks", "lgtm", "looks good", "good", "+1", 
+    "approved", "ship it", "merge it", "nice", "ok", "okay", 
+    "sounds good", "sg", "r+", "👍", "thumbs up", "approved"
+  ];
+  
+  // Check against our list of meaningless comments
+  for (const phrase of meaninglessComments) {
+    if (textLower === phrase || 
+        textLower.startsWith(phrase + " ") || 
+        textLower.endsWith(" " + phrase)) {
+      return false;
+    }
   }
   
-  // Check if it's just a short comment without specific content
+  // Check if it's just a short comment (less than 15 chars) without specific content
   if (textLower.length < 15 && 
-      !['bug', 'fix', 'issue', 'error', 'change', 'update']
-        .some(keyword => textLower.includes(keyword))) {
+      !["bug", "fix", "issue", "error", "change", "update"].some(keyword => textLower.includes(keyword))) {
     return false;
   }
   
@@ -243,68 +261,102 @@ interface GitLabProject {
   default_branch?: string;
 }
 
-async function getContributionData(api: GitlabInstance, project: GitLabProject, startDate: string, endDate: string): Promise<{
-  contributions: DailyContributions;
-  pushDetails: Record<string, PushDetail[]>;
+/**
+ * Get contribution data (Python equivalent)
+ * Python: def get_contribution_data(gl, group_id, start_date, end_date, user_mapping):
+ */
+export async function getContributionData(
+  api: GitlabInstance,
+  groupId: string,
+  startDate: string,
+  endDate: string,
+  userMapping: Map<string, string>
+): Promise<{
+  contributions: Record<string, { pushes: number; mergeRequests: number }>;
+  userPushes: Record<string, number>;
+  userMergeRequests: Record<string, number>;
+  userPushDetails: Record<string, PushDetail[]>;
 }> {
-  const contributions: DailyContributions = {};
-  const pushDetails: Record<string, PushDetail[]> = {};
-
-  // Get default branch
-  const defaultBranch = project.default_branch || 'main';
-
-  // Get all commits in date range
-  const commits = await api.Commits.all(project.id, {
-    since: startOfDay(new Date(startDate)).toISOString(),
-    until: endOfDay(new Date(endDate)).toISOString(),
-    ref_name: defaultBranch // Only count commits to default branch
-  });
-
-  for (const commit of commits) {
-    if (!commit.author_name || isBot(commit.author_name)) continue;
-
-    const date = format(new Date(commit.created_at), 'yyyy-MM-dd');
-    const author = commit.author_name.toLowerCase();
-
-    // Initialize contribution record if needed
-    if (!contributions[date]) {
-      contributions[date] = initializeContributionRecord();
-    }
-    contributions[date][author] = (contributions[date][author] || 0) + 1;
-
-    // Get commit details including diff stats
+  const group = await api.Groups.show(groupId);
+  const groupProjects = await api.Groups.projects(groupId);
+  
+  const contributions: Record<string, { pushes: number; mergeRequests: number }> = {};
+  const userPushes: Record<string, number> = {};
+  const userMergeRequests: Record<string, number> = {};
+  const userPushDetails: Record<string, PushDetail[]> = {};
+  
+  for (const groupProject of groupProjects) {
+    const project = await api.Projects.show(groupProject.id);
+    const defaultBranch = getDefaultBranch(project);
+    
+    // Fetch push events (GitLab API doesn't have direct events endpoint, so we'll use commits)
     try {
-      const commitDetails = await api.Commits.show(project.id, commit.id);
-      const stats = commitDetails.stats as GitLabCommitStats;
+      const commits = await api.Commits.all(project.id, {
+        since: startDate,
+        until: endDate,
+        ref_name: defaultBranch
+      });
       
-      if (!pushDetails[author]) {
-        pushDetails[author] = [];
+      for (const commit of commits) {
+        const commitDate = new Date(commit.created_at);
+        const dateStr = commitDate.toISOString().split('T')[0];
+        
+        if (!contributions[dateStr]) {
+          contributions[dateStr] = { pushes: 0, mergeRequests: 0 };
+        }
+        
+        contributions[dateStr].pushes++;
+        
+        const authorName = userMapping.get((commit.author_name as string)?.toLowerCase() || '') || (commit.author_name as string) || 'Unknown';
+        userPushes[authorName] = (userPushes[authorName] || 0) + 1;
+        
+        if (!userPushDetails[authorName]) {
+          userPushDetails[authorName] = [];
+        }
+        
+        userPushDetails[authorName].push({
+          sha: commit.id,
+          message: commit.message || '',
+          date: format(new Date(commit.created_at), 'yyyy-MM-dd\'T\'HH:mm:ss\'Z\''),
+          project: project.name || 'unknown',
+          branch: defaultBranch,
+          filesChanged: undefined,
+          insertions: undefined,
+          deletions: undefined
+        });
       }
-      pushDetails[author].push({
-        sha: commit.id,
-        message: commit.message,
-        date: format(new Date(commit.created_at), 'yyyy-MM-dd\'T\'HH:mm:ss\'Z\''),
-        project: project.name || 'unknown',
-        branch: typeof commit.ref === 'string' ? commit.ref : undefined,
-        filesChanged: stats?.files,
-        insertions: stats?.additions,
-        deletions: stats?.deletions
-      });
     } catch (error) {
-      console.error(`Error fetching commit details for ${commit.id}:`, error);
-      if (!pushDetails[author]) {
-        pushDetails[author] = [];
-      }
-      pushDetails[author].push({
-        sha: commit.id,
-        message: commit.message,
-        date: format(new Date(commit.created_at), 'yyyy-MM-dd\'T\'HH:mm:ss\'Z\''),
-        project: project.name || 'unknown'
+      console.error(`Error fetching commits for project ${project.id}:`, error);
+    }
+    
+    // Fetch merge requests
+    try {
+      const mergeRequests = await api.MergeRequests.all({
+        projectId: project.id,
+        createdAfter: startOfDay(new Date(startDate)).toISOString(),
+        createdBefore: endOfDay(new Date(endDate)).toISOString(),
+        perPage: 100,
       });
+      
+      for (const mr of mergeRequests) {
+        const mrDate = new Date(mr.created_at);
+        const dateStr = mrDate.toISOString().split('T')[0];
+        
+        if (!contributions[dateStr]) {
+          contributions[dateStr] = { pushes: 0, mergeRequests: 0 };
+        }
+        
+        contributions[dateStr].mergeRequests++;
+        
+        const authorName = userMapping.get((mr.author as any)?.username?.toLowerCase() || '') || (mr.author as any)?.name || 'Unknown';
+        userMergeRequests[authorName] = (userMergeRequests[authorName] || 0) + 1;
+      }
+    } catch (error) {
+      console.error(`Error fetching merge requests for project ${project.id}:`, error);
     }
   }
-
-  return { contributions, pushDetails };
+  
+  return { contributions, userPushes, userMergeRequests, userPushDetails };
 }
 
 export async function getMergeRequestsHeatmap(options: MergeRequestsHeatmapOptions): Promise<MergeRequestsHeatmapResult> {
@@ -335,7 +387,7 @@ export async function getMergeRequestsHeatmap(options: MergeRequestsHeatmapOptio
 
   for (const project of groupProjects) {
     // Get contribution data
-    const { contributions, pushDetails } = await getContributionData(api, project, startDate, endDate);
+    const { contributions, userPushDetails: contributionUserPushDetails } = await getContributionData(api, groupId, startDate, endDate, userMapping);
     
     // Merge contribution data
     for (const [date, users] of Object.entries(contributions)) {
@@ -348,7 +400,7 @@ export async function getMergeRequestsHeatmap(options: MergeRequestsHeatmapOptio
     }
 
     // Merge push details
-    for (const [user, details] of Object.entries(pushDetails)) {
+    for (const [user, details] of Object.entries(contributionUserPushDetails)) {
       if (!userPushDetails[user]) {
         userPushDetails[user] = [];
       }
@@ -605,4 +657,294 @@ export async function testGitlabConnection(): Promise<{ status: string; message:
       return { status: 'error', message: 'Unknown error occurred' };
     }
   }
+}
+
+/**
+ * Get unique members for a sprint (Python equivalent)
+ * Python: def get_unique_members(self, board_id, sprint_id):
+ */
+export async function getUniqueMembers(boardId: string, sprintId: number): Promise<Array<{ name: string; email: string }>> {
+  try {
+    const credentials = {
+      url: process.env.JIRA_URL!,
+      user: process.env.JIRA_USER!,
+      token: process.env.JIRA_TOKEN!
+    };
+
+    const response = await fetchWithProxy(`${credentials.url}/rest/agile/1.0/board/${boardId}/sprint/${sprintId}/issue`, {
+      auth: { username: credentials.user, password: credentials.token },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch sprint issues: ${response.status}`);
+    }
+
+    const data = await response.json() as { issues: Array<{ fields: { assignee?: { displayName: string; emailAddress: string }; labels?: string[] } }> };
+    
+    const memberIssues = new Map<string, { details: { name: string; email: string } | null; hasCommitRequired: boolean }>();
+
+    for (const issue of data.issues) {
+      const assignee = issue.fields.assignee;
+      if (assignee) {
+        const email = assignee.emailAddress;
+        const hasCommitRequired = !issue.fields.labels?.includes('no_commit_required');
+        
+        memberIssues.set(email, {
+          details: { name: assignee.displayName, email },
+          hasCommitRequired
+        });
+      }
+    }
+
+    const validMembers = Array.from(memberIssues.values())
+      .filter(member => member.hasCommitRequired && member.details)
+      .map(member => member.details!)
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return validMembers;
+  } catch (error) {
+    console.error(`Error getting unique members for sprint ${sprintId}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Process merge request (Python equivalent)
+ * Python: def process_merge_request(args):
+ */
+export async function processMergeRequest(
+  api: GitlabInstance,
+  projectId: number,
+  mergeRequestId: number,
+  sprintStart: Date,
+  sprintEnd: Date,
+  projectCache: Map<number, string>
+): Promise<{
+  id: number;
+  status: string;
+  title: string;
+  author: string;
+  created_at: Date;
+  updated_at: Date;
+  project: string;
+  approvers: string;
+  source_branch: string;
+  target_branch: string;
+  approval_duration: number | null;
+  last_commit_date: Date | null;
+  last_commit_to_merge: number | null;
+} | null> {
+  try {
+    const project = await api.Projects.show(projectId);
+    const mr = await api.MergeRequests.show(projectId, mergeRequestId);
+
+    const created_at = new Date(mr.created_at);
+    if (!(sprintStart <= created_at && created_at <= sprintEnd)) {
+      console.log(`Skipping MR ${mr.iid}: Created at ${created_at}, outside of sprint range`);
+      return null;
+    }
+
+    const updated_at = new Date(mr.updated_at);
+    
+    // Handle cases where author information might be missing
+    let author_name = "Unknown";
+    if (mr.author) {
+      if (typeof mr.author === 'object' && 'name' in mr.author) {
+        author_name = (mr.author as any).name;
+      } else if (typeof mr.author === 'object' && 'displayName' in mr.author) {
+        author_name = (mr.author as any).displayName;
+      }
+    }
+
+    let approval_duration: number | null = null;
+    if (mr.state === 'merged' && mr.merged_at) {
+      const merged_at = new Date(mr.merged_at);
+      approval_duration = (merged_at.getTime() - created_at.getTime()) / (1000 * 60 * 60);
+    }
+
+    const commits = await api.MergeRequests.commits(projectId, mergeRequestId);
+    let last_commit_date: Date | null = null;
+    let last_commit_to_merge: number | null = null;
+    
+    if (commits && commits.length > 0) {
+      last_commit_date = new Date(commits[0].created_at);
+      last_commit_to_merge = (updated_at.getTime() - last_commit_date.getTime()) / (1000 * 60 * 60);
+    }
+
+    const project_name = projectCache.get(projectId) || project.name;
+    if (!projectCache.has(projectId)) {
+      projectCache.set(projectId, project_name);
+    }
+
+    // Get approvers
+    let approvers = '';
+    try {
+      const approvalState = await api.MergeRequestApprovals.approvalState(projectId, mergeRequestId);
+      if (approvalState.approved_by && Array.isArray(approvalState.approved_by)) {
+        approvers = approvalState.approved_by
+          .map((approver: any) => approver.user?.name || approver.user?.displayName || 'Unknown')
+          .join(', ');
+      }
+    } catch (error) {
+      console.error(`Error fetching approvers for MR ${mergeRequestId}:`, error);
+    }
+
+    return {
+      id: mr.iid,
+      status: mr.state,
+      title: mr.title,
+      author: author_name,
+      created_at,
+      updated_at,
+      project: project_name,
+      approvers,
+      source_branch: mr.source_branch,
+      target_branch: mr.target_branch,
+      approval_duration,
+      last_commit_date,
+      last_commit_to_merge
+    };
+  } catch (error) {
+    console.error(`Error processing merge request ${mergeRequestId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Create dashboard data (Python equivalent)
+ * Python: def create_dashboard(df, jira_members, gitlab_authors, exact_matches, close_matches, jira_only, gitlab_only, all_matches):
+ */
+export function createDashboardData(
+  mergeRequests: Array<{
+    id: number;
+    status: string;
+    title: string;
+    author: string;
+    created_at: Date;
+    updated_at: Date;
+    project: string;
+    approvers: string;
+    source_branch: string;
+    target_branch: string;
+    approval_duration: number | null;
+    last_commit_date: Date | null;
+    last_commit_to_merge: number | null;
+  }>,
+  jiraMembers: Array<{ name: string; email: string }>,
+  gitlabAuthors: string[]
+): {
+  statusDistribution: Record<string, number>;
+  authorDistribution: Record<string, number>;
+  dailyDistribution: Record<string, number>;
+  projectDistribution: Record<string, number>;
+  approvalDurationStats: { average: number; median: number; min: number; max: number };
+  teamMemberCorrelation: {
+    exactMatches: Array<{ jiraName: string; gitlabName: string }>;
+    closeMatches: Array<{ jiraName: string; gitlabName: string; similarity: number }>;
+    jiraOnly: string[];
+    gitlabOnly: string[];
+  };
+} {
+  if (mergeRequests.length === 0) {
+    return {
+      statusDistribution: {},
+      authorDistribution: {},
+      dailyDistribution: {},
+      projectDistribution: {},
+      approvalDurationStats: { average: 0, median: 0, min: 0, max: 0 },
+      teamMemberCorrelation: {
+        exactMatches: [],
+        closeMatches: [],
+        jiraOnly: jiraMembers.map(m => m.name),
+        gitlabOnly: gitlabAuthors
+      }
+    };
+  }
+
+  // Status distribution
+  const statusDistribution: Record<string, number> = {};
+  for (const mr of mergeRequests) {
+    statusDistribution[mr.status] = (statusDistribution[mr.status] || 0) + 1;
+  }
+
+  // Author distribution
+  const authorDistribution: Record<string, number> = {};
+  for (const mr of mergeRequests) {
+    authorDistribution[mr.author] = (authorDistribution[mr.author] || 0) + 1;
+  }
+
+  // Daily distribution
+  const dailyDistribution: Record<string, number> = {};
+  for (const mr of mergeRequests) {
+    const dateKey = mr.created_at.toISOString().split('T')[0];
+    dailyDistribution[dateKey] = (dailyDistribution[dateKey] || 0) + 1;
+  }
+
+  // Project distribution
+  const projectDistribution: Record<string, number> = {};
+  for (const mr of mergeRequests) {
+    projectDistribution[mr.project] = (projectDistribution[mr.project] || 0) + 1;
+  }
+
+  // Approval duration stats
+  const approvalDurations = mergeRequests
+    .filter(mr => mr.approval_duration !== null)
+    .map(mr => mr.approval_duration!);
+  
+  const approvalDurationStats = approvalDurations.length > 0 ? {
+    average: approvalDurations.reduce((sum, duration) => sum + duration, 0) / approvalDurations.length,
+    median: approvalDurations.sort((a, b) => a - b)[Math.floor(approvalDurations.length / 2)],
+    min: Math.min(...approvalDurations),
+    max: Math.max(...approvalDurations)
+  } : { average: 0, median: 0, min: 0, max: 0 };
+
+  // Team member correlation
+  const jiraNames = jiraMembers.map(m => m.name);
+  const exactMatches: Array<{ jiraName: string; gitlabName: string }> = [];
+  const closeMatches: Array<{ jiraName: string; gitlabName: string; similarity: number }> = [];
+  const jiraOnly: string[] = [];
+  const gitlabOnly: string[] = [];
+
+  // Find exact matches
+  for (const jiraName of jiraNames) {
+    const exactMatch = gitlabAuthors.find(gitlabName => 
+      normalizeName(jiraName) === normalizeName(gitlabName)
+    );
+    if (exactMatch) {
+      exactMatches.push({ jiraName, gitlabName: exactMatch });
+    } else {
+      jiraOnly.push(jiraName);
+    }
+  }
+
+  // Find close matches for remaining Jira members
+  for (const jiraName of jiraOnly) {
+    const closeMatch = findClosestName(jiraName, gitlabAuthors, 80);
+    if (closeMatch) {
+      const similarity = calculateLevenshteinDistance(normalizeName(jiraName), normalizeName(closeMatch));
+      closeMatches.push({ jiraName, gitlabName: closeMatch, similarity });
+      // Remove from jiraOnly and gitlabOnly
+      const jiraIndex = jiraOnly.indexOf(jiraName);
+      if (jiraIndex > -1) jiraOnly.splice(jiraIndex, 1);
+      const gitlabIndex = gitlabAuthors.indexOf(closeMatch);
+      if (gitlabIndex > -1) gitlabAuthors.splice(gitlabIndex, 1);
+    }
+  }
+
+  // Remaining GitLab authors are gitlabOnly
+  gitlabOnly.push(...gitlabAuthors);
+
+  return {
+    statusDistribution,
+    authorDistribution,
+    dailyDistribution,
+    projectDistribution,
+    approvalDurationStats,
+    teamMemberCorrelation: {
+      exactMatches,
+      closeMatches,
+      jiraOnly,
+      gitlabOnly
+    }
+  };
 }

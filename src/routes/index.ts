@@ -17,6 +17,6 @@ router.use('/api/v1/pi-planning', piPlanningRoutes);
 router.use('/api/v1/epic', epicRoutes);
 router.use('/api/v1/sprint', sprintRoutes);
 router.use('/api/v1/milestone', milestoneRoutes);
-router.use('/current', currentRoutes);
+router.use('/api/v1/current', currentRoutes);
 
 export default router; 

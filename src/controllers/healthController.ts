@@ -56,11 +56,17 @@ export const statusCheck = async (req: Request, res: Response): Promise<void> =>
     const gitlabToken = process.env.GITLAB_TOKEN;
     const gitlabHost = process.env.GITLAB_HOST || 'https://gitlab.com';
     if (!gitlabToken) throw new Error('Missing GitLab token');
-    const response = await fetchWithProxy(`${gitlabHost}/api/v4/user`, {
+    
+    // Use native fetch for GitLab to avoid proxy
+    const response = await fetch(`${gitlabHost}/api/v4/user`, {
       method: 'GET',
-      headers: { 'PRIVATE-TOKEN': gitlabToken },
-      timeout: 5000,
+      headers: { 
+        'PRIVATE-TOKEN': gitlabToken,
+        'Content-Type': 'application/json'
+      },
+      signal: AbortSignal.timeout(5000), // 5 second timeout
     });
+    
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }

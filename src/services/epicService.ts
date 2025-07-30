@@ -1,6 +1,7 @@
-import { EpicData, EpicTableRow, EpicSummaryOptions } from '../types/epic';
-import { JiraIssue, JiraEpic, JiraSearchResponse } from '../types/jira';
+import { EpicData, EpicSummaryOptions, EpicTableRow } from '../types/epic';
+import { JiraIssue } from '../types/jira';
 import { getIssuesFromJira } from './jiraService';
+import { fetchWithProxy } from '../utils/fetchWithProxy';
 import config from '../config';
 
 export async function getEpicDetails(epicKey: string): Promise<EpicData | null> {
@@ -84,6 +85,35 @@ export async function getEpicSummary(options: EpicSummaryOptions): Promise<EpicT
   } catch (error) {
     console.error('Error fetching epic summary:', error);
     throw error;
+  }
+}
+
+/**
+ * Get epic summary (Python equivalent)
+ * Python: def get_epic_summary(epic):
+ */
+export async function getEpicSummaryByKey(epicKey: string): Promise<string> {
+  try {
+    const credentials = {
+      url: process.env.JIRA_URL!,
+      user: process.env.JIRA_USER!,
+      token: process.env.JIRA_TOKEN!
+    };
+
+    const response = await fetchWithProxy(`${credentials.url}/rest/api/3/issue/${epicKey}?fields=summary`, {
+      auth: { username: credentials.user, password: credentials.token },
+    });
+
+    if (!response.ok) {
+      return "";
+    }
+
+    const data = await response.json() as { fields: { summary: string } };
+    const formattedSummary = data.fields.summary.replace(/\n/g, '<br/>');
+    return formattedSummary;
+  } catch (error) {
+    console.error(`Error getting epic summary for ${epicKey}:`, error);
+    return "";
   }
 }
 

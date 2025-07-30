@@ -20,18 +20,90 @@ export const STORY_POINT_STATUSES = {
 } as const;
 
 /**
- * Process story points from various formats (number, string, etc.)
- * Ensures consistent handling across all services
+ * Process story points to match Python logic exactly
+ * Python: def process_story_points(story_points):
+ *     if story_points % 1 == 0:
+ *         story_points = int(story_points)
+ *     return story_points
  */
-export function processStoryPoints(storyPoints: number | string | undefined): number {
-  if (typeof storyPoints === 'number') {
-    return Number.isInteger(storyPoints) ? storyPoints : Math.round(storyPoints);
+export function processStoryPoints(storyPoints: number | undefined): number {
+  if (storyPoints === undefined || storyPoints === null) {
+    return 0;
   }
-  if (typeof storyPoints === 'string') {
-    const parsed = parseFloat(storyPoints);
-    return isNaN(parsed) ? 0 : Math.round(parsed);
+  if (storyPoints % 1 === 0) {
+    return Math.floor(storyPoints);
   }
-  return 0;
+  return storyPoints;
+}
+
+/**
+ * Update story points logic matching Python implementation
+ * Python: def update_story_points(child_key, child_status, issue, parent_key, snc_issues, project_sprints, sprint):
+ */
+export function updateStoryPoints(
+  issue: any,
+  projectSprints: number[],
+  sprint?: number
+): {
+  storyPoints: number;
+  shouldInclude: boolean;
+  childKey: string;
+  childStatus: string;
+  parentKey: string;
+} {
+  // Get story points with fallback to 5 (Python equivalent)
+  let storyPoints = issue.fields?.customfield_10002 || 5;
+  storyPoints = storyPoints >= 0 ? storyPoints : 5;
+  
+  // Process story points (Python equivalent)
+  storyPoints = processStoryPoints(storyPoints);
+  
+  const childKey = issue.key;
+  const childStatus = issue.fields?.status?.name || '';
+  const parentKey = issue.fields?.parent?.key || '';
+  
+  let shouldInclude = false;
+  
+  if (sprint === undefined) {
+    // No specific sprint - check if issue belongs to current PI
+    let nextPi = false;
+    const sprintField = issue.fields?.customfield_10341;
+    
+    if (sprintField) {
+      for (const sprintItem of sprintField) {
+        if (!projectSprints.includes(sprintItem.id) && 
+            (sprintItem.state === 'active' || sprintItem.state === 'future')) {
+          nextPi = true;
+          break;
+        }
+      }
+    }
+    
+    if (!nextPi) {
+      shouldInclude = true;
+    }
+  } else {
+    // Specific sprint - check if issue belongs to this sprint
+    const sprintField = issue.fields?.customfield_10341;
+    if (sprintField) {
+      const sprintIds = sprintField.map((s: any) => s.id).filter((id: number) => id !== undefined);
+      if (sprintIds.length > 0) {
+        const maxSprintId = Math.max(...sprintIds);
+        
+        if (projectSprints.includes(maxSprintId) && maxSprintId === sprint) {
+          shouldInclude = true;
+        }
+      }
+    }
+  }
+  
+  return {
+    storyPoints,
+    shouldInclude,
+    childKey,
+    childStatus,
+    parentKey
+  };
 }
 
 /**
