@@ -18,7 +18,7 @@ export async function getCurrentSummary(req: Request, res: Response) {
     const jiraReleases = await getReleasesFromJira(project as string);
     let currentJiraRelease = null;
     if (jiraReleases && jiraReleases.length > 0) {
-      currentJiraRelease = jiraReleases.find(r => !r.released) || jiraReleases[jiraReleases.length - 1];
+      currentJiraRelease = jiraReleases.find(release => !release.released) || jiraReleases[jiraReleases.length - 1];
     }
 
     // 3. PI Planning current sprints

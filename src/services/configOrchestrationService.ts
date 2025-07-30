@@ -29,56 +29,56 @@ export interface SosConfigRow {
 
 export interface OrchestrationResult {
   project: string;
-  piSummary?: any;
-  mergeRequests?: any;
-  velocity?: any;
+  piSummary?: unknown;
+  mergeRequests?: unknown;
+  velocity?: unknown;
   error?: string;
   // Add more as needed
 }
 
 export async function runConfigOrchestration(): Promise<OrchestrationResult[]> {
-  const csvPath = path.resolve(__dirname, '../../pytonode-main/pytonode-main/sos_config_5.csv');
-  const csvContent = fs.readFileSync(csvPath, 'utf-8');
-  const records: SosConfigRow[] = parse(csvContent, {
+  const csvFilePath = path.resolve(__dirname, '../../pytonode-main/pytonode-main/sos_config_5.csv');
+  const csvFileContent = fs.readFileSync(csvFilePath, 'utf-8');
+  const configRecords: SosConfigRow[] = parse(csvFileContent, {
     columns: true,
     skip_empty_lines: true,
     delimiter: '|',
   });
 
-  const results: OrchestrationResult[] = [];
-  for (const row of records) {
+  const orchestrationResults: OrchestrationResult[] = [];
+  for (const configRow of configRecords) {
     try {
-      const [piSummary, mergeRequests, velocity] = await Promise.all([
+      const [piPlanningSummary, mergeRequestsData, velocityData] = await Promise.all([
         piPlanningSummaryService({
-          project: row.Project,
-          boardId: row.JiraBoardId,
-          piStartDate: row.PIStartDate,
-          piEndDate: row.PIEndDate,
+          project: configRow.Project,
+          boardId: configRow.JiraBoardId,
+          piStartDate: configRow.PIStartDate,
+          piEndDate: configRow.PIEndDate,
         }),
         getMergeRequestsHeatmap({
-          groupId: row.GitlabDashboardUrl,
-          startDate: row.PIStartDate,
-          endDate: row.PIEndDate,
+          groupId: configRow.GitlabDashboardUrl,
+          startDate: configRow.PIStartDate,
+          endDate: configRow.PIEndDate,
         }),
         getVelocitySummary({
-          boardId: row.JiraBoardId,
+          boardId: configRow.JiraBoardId,
           numSprints: 6,
-          year: row.PIStartDate ? new Date(row.PIStartDate).getFullYear() : undefined,
-          sprintPrefix: row.IncludedSprintName || undefined,
+          year: configRow.PIStartDate ? new Date(configRow.PIStartDate).getFullYear() : undefined,
+          sprintPrefix: configRow.IncludedSprintName || undefined,
         }),
       ]);
-      results.push({
-        project: row.Project,
-        piSummary,
-        mergeRequests,
-        velocity,
+      orchestrationResults.push({
+        project: configRow.Project,
+        piSummary: piPlanningSummary,
+        mergeRequests: mergeRequestsData,
+        velocity: velocityData,
       });
-    } catch (err) {
-      results.push({
-        project: row.Project,
-        error: (err as Error).message,
+    } catch (error) {
+      orchestrationResults.push({
+        project: configRow.Project,
+        error: (error as Error).message,
       });
     }
   }
-  return results;
+  return orchestrationResults;
 } 

@@ -4,7 +4,7 @@ import { piPlanningSummaryService } from '../../services/piPlanningService';
 export const piPlanningSummary = async (req: Request, res: Response): Promise<void> => {
   try {
     const { project, boardId, piStartDate, piEndDate } = req.query;
-    // TODO: Validate and pass all needed params
+  
     const summary = await piPlanningSummaryService({
       project: project as string,
       boardId: boardId as string,

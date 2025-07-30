@@ -1,6 +1,7 @@
 // @ts-ignore
 import axios from 'axios';
 import { Request, Response } from 'express';
+import { createServiceError, createAuthenticationError, ServiceError, AuthenticationError } from '../../types/errors';
 
 export const updateConfluencePage = async (req: Request, res: Response): Promise<void> => {
   const { pageId, title, body, auth } = req.body;
@@ -26,8 +27,14 @@ export const updateConfluencePage = async (req: Request, res: Response): Promise
       }
     );
     res.json({ status: 'success', data: response.data });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      const serviceError = createServiceError(error.message, 'Confluence', 'updatePage');
+      res.status(500).json({ error: serviceError.message, code: serviceError.code });
+    } else {
+      const serviceError = createServiceError('Unknown error occurred', 'Confluence', 'updatePage');
+      res.status(500).json({ error: serviceError.message, code: serviceError.code });
+    }
   }
 };
 
@@ -48,7 +55,13 @@ export const testConfluenceConnection = async (req: Request, res: Response): Pro
       },
     });
     res.json({ status: 'success', message: 'Connected to Confluence successfully' });
-  } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      const authError = createAuthenticationError(error.message, 'Confluence');
+      res.status(500).json({ status: 'error', message: authError.message, code: authError.code });
+    } else {
+      const authError = createAuthenticationError('Unknown error occurred', 'Confluence');
+      res.status(500).json({ status: 'error', message: authError.message, code: authError.code });
+    }
   }
 }; 

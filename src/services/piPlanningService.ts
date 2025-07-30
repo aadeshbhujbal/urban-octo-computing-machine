@@ -1,17 +1,16 @@
 import { getReleasesFromJira, getSprintsFromJira, getIssuesFromJira } from './jiraService';
 import { PiPlanningSummaryOptions, EpicAdvancedAnalytics } from '../types/piPlanning';
-import { JiraIssueStatusCategory, JiraSprintState } from '../types/jira';
+import { 
+  processStoryPoints, 
+  calculateStoryPointBreakdown, 
+  calculateGroupedStoryPointBreakdown,
+  calculateRagStatus,
+  calculateCompletionPercentage,
+  getSprintIdFromIssue,
+  getEpicKeyFromIssue
+} from '../utils/storyPointUtils';
 
-function processStoryPoints(storyPoints: number | string | undefined | null): number {
-  if (typeof storyPoints === 'number') {
-    return Number.isInteger(storyPoints) ? storyPoints : Math.round(storyPoints);
-  }
-  if (typeof storyPoints === 'string') {
-    const parsed = parseFloat(storyPoints);
-    return isNaN(parsed) ? 0 : Math.round(parsed);
-  }
-  return 0;
-}
+
 
 function parseDate(dateStr?: string): Date | null {
   if (!dateStr) return null;
@@ -39,13 +38,13 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
   // 3. Filter sprints by PI date range (if dates are provided)
   const filteredSprints = sprints.filter(sprint => {
     if (!sprint.startDate || !sprint.endDate) return false;
-    const sprintStart = new Date(sprint.startDate);
-    const sprintEnd = new Date(sprint.endDate);
-    const piStart = new Date(piStartDate);
-    const piEnd = new Date(piEndDate);
+    const sprintStartDate = new Date(sprint.startDate);
+    const sprintEndDate = new Date(sprint.endDate);
+    const piStartDateObj = new Date(piStartDate);
+    const piEndDateObj = new Date(piEndDate);
     
     // Include sprints that overlap with the PI period
-    return (sprintStart <= piEnd && sprintEnd >= piStart);
+    return (sprintStartDate <= piEndDateObj && sprintEndDate >= piStartDateObj);
   });
 
   // Check if we have any sprints in the PI date range
@@ -79,7 +78,7 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
   }
 
   // 4. Fetch issues for the project and filtered sprints
-  const sprintIds = filteredSprints.map(s => s.id);
+  const sprintIds = filteredSprints.map(sprint => sprint.id);
   const sprintClause = sprintIds.length > 0 ? `OR Sprint in (${sprintIds.join(',')})` : '';
   
   const jql = `project = "${project}" 
@@ -91,69 +90,31 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
       ${sprintClause}
     )`;
   
-  console.log('JQL Query:', jql); // For debugging
+
   const issues = await getIssuesFromJira(jql);
 
-  // 5. Calculate story points and group by status
-  let totalStoryPoints = 0;
-  let completedStoryPoints = 0;
-  let inProgressStoryPoints = 0;
-  let toDoStoryPoints = 0;
-  const completedStatuses = ['Done', 'Closed', 'Resolved'];
-  const inProgressStatuses = ['In Progress', 'In Development'];
-  const toDoStatuses = ['To Do', 'Open', 'New'];
+  // 5. Calculate story points and group by status using shared utilities
+  const breakdown = calculateStoryPointBreakdown(issues);
+  
+  // Epic and sprint breakdowns using shared utilities
+  const epicBreakdown = calculateGroupedStoryPointBreakdown(issues, getEpicKeyFromIssue);
+  const sprintBreakdown = calculateGroupedStoryPointBreakdown(issues, getSprintIdFromIssue);
 
-  // Epic and sprint breakdowns
+  // Convert Maps to Records for compatibility
   const epicStoryPoints: Record<string, { completed: number; inProgress: number; toDo: number; total: number }> = {};
   const sprintStoryPoints: Record<string, { completed: number; inProgress: number; toDo: number; total: number }> = {};
 
-  for (const issue of issues) {
-    const sp = processStoryPoints(issue.fields['customfield_10002']);
-    totalStoryPoints += sp;
-    const status = (issue.fields.status?.name || '').toLowerCase();
-    const epic = issue.fields.parent?.key || 'No Epic';
-    let sprintArr: Array<{ id: number; name: string }> = [];
-    if (Array.isArray(issue.fields.customfield_10341)) {
-      sprintArr = issue.fields.customfield_10341;
-    } else if (issue.fields.customfield_10341 && typeof issue.fields.customfield_10341 === 'object') {
-      sprintArr = [issue.fields.customfield_10341];
-    }
-    // Use the latest sprint for grouping
-    const sprintId = sprintArr.length > 0 ? sprintArr[sprintArr.length - 1]?.id?.toString() : 'No Sprint';
-
-    // Epic breakdown
-    if (!epicStoryPoints[epic]) epicStoryPoints[epic] = { completed: 0, inProgress: 0, toDo: 0, total: 0 };
-    epicStoryPoints[epic].total += sp;
-    // Sprint breakdown
-    if (!sprintStoryPoints[sprintId]) sprintStoryPoints[sprintId] = { completed: 0, inProgress: 0, toDo: 0, total: 0 };
-    sprintStoryPoints[sprintId].total += sp;
-
-    if (completedStatuses.map(s => s.toLowerCase()).includes(status)) {
-      completedStoryPoints += sp;
-      epicStoryPoints[epic].completed += sp;
-      sprintStoryPoints[sprintId].completed += sp;
-    } else if (inProgressStatuses.map(s => s.toLowerCase()).includes(status)) {
-      inProgressStoryPoints += sp;
-      epicStoryPoints[epic].inProgress += sp;
-      sprintStoryPoints[sprintId].inProgress += sp;
-    } else if (toDoStatuses.map(s => s.toLowerCase()).includes(status)) {
-      toDoStoryPoints += sp;
-      epicStoryPoints[epic].toDo += sp;
-      sprintStoryPoints[sprintId].toDo += sp;
-    }
+  for (const [epic, data] of epicBreakdown) {
+    epicStoryPoints[epic] = data;
   }
 
-  // 6. Calculate RAG status
-  let ragStatus = 'Red';
-  let completedPercentage = 0;
-  if (totalStoryPoints > 0) {
-    completedPercentage = Math.round((completedStoryPoints / totalStoryPoints) * 100);
-    if (completedPercentage > 90) {
-      ragStatus = 'Green';
-    } else if (completedPercentage >= 80) {
-      ragStatus = 'Amber';
-    }
+  for (const [sprintId, data] of sprintBreakdown) {
+    sprintStoryPoints[sprintId || 'No Sprint'] = data;
   }
+
+  // 6. Calculate RAG status using shared utilities
+  const completedPercentage = calculateCompletionPercentage(breakdown.completed, breakdown.total);
+  const ragStatus = calculateRagStatus(breakdown.completed, breakdown.total);
 
   // 7. Identify current, previous, and future sprints
   const today = new Date();
@@ -171,50 +132,42 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
     return start && start > today;
   });
 
-  // 8. Calculate stats for each group
-  function groupStats(sprintGroup: typeof filteredSprints) {
-    const ids = new Set(sprintGroup.map(s => s.id));
-    let groupTotal = 0, groupCompleted = 0, groupInProgress = 0, groupToDo = 0;
-    for (const issue of issues) {
-      let sprintArr: Array<{ id: number; name: string }> = [];
-      if (Array.isArray(issue.fields.customfield_10341)) {
-        sprintArr = issue.fields.customfield_10341;
-      } else if (issue.fields.customfield_10341 && typeof issue.fields.customfield_10341 === 'object') {
-        sprintArr = [issue.fields.customfield_10341];
-      }
-      const sprintId = sprintArr.length > 0 ? sprintArr[sprintArr.length - 1]?.id : null;
-      if (sprintId && ids.has(sprintId)) {
-        const sp = processStoryPoints(issue.fields['customfield_10002']);
-        const status = (issue.fields.status?.name || '').toLowerCase();
-        groupTotal += sp;
-        if (completedStatuses.map(s => s.toLowerCase()).includes(status)) groupCompleted += sp;
-        else if (inProgressStatuses.map(s => s.toLowerCase()).includes(status)) groupInProgress += sp;
-        else if (toDoStatuses.map(s => s.toLowerCase()).includes(status)) groupToDo += sp;
-      }
-    }
-    return { groupTotal, groupCompleted, groupInProgress, groupToDo };
+  // 8. Calculate stats for each group using shared utilities
+  function calculateSprintGroupStats(sprintGroup: typeof filteredSprints) {
+    const sprintIds = new Set(sprintGroup.map(sprint => sprint.id));
+    const groupIssues = issues.filter(issue => {
+      const issueSprintId = getSprintIdFromIssue(issue);
+      return issueSprintId && sprintIds.has(parseInt(issueSprintId));
+    });
+    const groupBreakdown = calculateStoryPointBreakdown(groupIssues);
+    return { 
+      groupTotal: groupBreakdown.total, 
+      groupCompleted: groupBreakdown.completed, 
+      groupInProgress: groupBreakdown.inProgress, 
+      groupToDo: groupBreakdown.toDo 
+    };
   }
 
-  const currentSprintStats = groupStats(currentSprints);
-  const previousSprintStats = groupStats(previousSprints);
-  const futureSprintStats = groupStats(futureSprints);
+  const currentSprintStats = calculateSprintGroupStats(currentSprints);
+  const previousSprintStats = calculateSprintGroupStats(previousSprints);
+  const futureSprintStats = calculateSprintGroupStats(futureSprints);
 
   // 9. Calculate story points progress over time (burn-up)
-  const burnup: Array<{ date: string; completed: number }> = [];
-  let runningCompleted = 0;
-  const sortedSprints = [...filteredSprints].sort((sprintA, sprintB) => (sprintA.startDate || '').localeCompare(sprintB.startDate || ''));
-  for (const sprint of sortedSprints) {
+  const burnupData: Array<{ date: string; completed: number }> = [];
+  let cumulativeCompletedStoryPoints = 0;
+  const chronologicallySortedSprints = [...filteredSprints].sort((sprintA, sprintB) => (sprintA.startDate || '').localeCompare(sprintB.startDate || ''));
+  for (const sprint of chronologicallySortedSprints) {
     const sprintId = sprint.id;
-    const completed = sprintStoryPoints[sprintId]?.completed || 0;
-    runningCompleted += completed;
-    burnup.push({ date: sprint.endDate || '', completed: runningCompleted });
+    const sprintCompletedStoryPoints = sprintStoryPoints[sprintId]?.completed || 0;
+    cumulativeCompletedStoryPoints += sprintCompletedStoryPoints;
+    burnupData.push({ date: sprint.endDate || '', completed: cumulativeCompletedStoryPoints });
   }
 
   // 10. Calculate expected story points by now (story_points_current)
   let storyPointsCurrent = 0;
   let totalDays = 0;
   let daysPast = 0;
-  for (const sprint of sortedSprints) {
+  for (const sprint of chronologicallySortedSprints) {
     const start = parseDate(sprint.startDate);
     const end = parseDate(sprint.endDate);
     if (!start || !end) continue;
@@ -227,15 +180,15 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
     }
   }
   if (totalDays > 0) {
-    storyPointsCurrent = Math.round((daysPast / totalDays) * totalStoryPoints);
+    storyPointsCurrent = Math.round((daysPast / totalDays) * breakdown.total);
   }
 
   // 11. Advanced analytics: fetch RAID, WSJF, PI Scope, Progress for each epic
   const epicAdvanced: Record<string, EpicAdvancedAnalytics> = {};
-  const epicKeys = Object.keys(epicStoryPoints).filter(e => e !== 'No Epic');
+  const epicKeys = Object.keys(epicStoryPoints).filter(epicKey => epicKey !== 'No Epic');
   if (epicKeys.length > 0) {
     // Fetch all epics in one JQL call
-    const epicJql = `key in (${epicKeys.map(e => `"${e}"`).join(',')})`;
+    const epicJql = `key in (${epicKeys.map(epicKey => `"${epicKey}"`).join(',')})`;
     const epicIssues = await getIssuesFromJira(epicJql);
     for (const epic of epicIssues) {
       const key = epic.key;
@@ -250,39 +203,39 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
 
   // 12. Epic progress summary
   const epicProgress: Record<string, { completed: number; inProgress: number; toDo: number; total: number; completedPct: number; rag: string; raid?: string; wsjf?: string; piScope?: string; progress?: string }> = {};
-  for (const epic in epicStoryPoints) {
-    const e = epicStoryPoints[epic];
-    const completedPct = e.total > 0 ? Math.round((e.completed / e.total) * 100) : 0;
-    epicProgress[epic] = {
-      ...e,
-      completedPct,
-      rag: getEpicRag(e.completed, e.total),
-      ...(epicAdvanced[epic] || {}),
+  for (const epicKey in epicStoryPoints) {
+    const epicStoryPointData = epicStoryPoints[epicKey];
+    const completedPercentage = epicStoryPointData.total > 0 ? Math.round((epicStoryPointData.completed / epicStoryPointData.total) * 100) : 0;
+    epicProgress[epicKey] = {
+      ...epicStoryPointData,
+      completedPct: completedPercentage,
+      rag: getEpicRag(epicStoryPointData.completed, epicStoryPointData.total),
+      ...(epicAdvanced[epicKey] || {}),
     };
   }
 
   // 13. Prepare RAID, WSJF, PI Scope, and Progress summaries
-  const raid: Record<string, string> = {};
-  const wsjf: Record<string, string> = {};
-  const piScope: Record<string, string> = {};
-  const progress: Record<string, string> = {};
+  const raidSummary: Record<string, string> = {};
+  const wsjfSummary: Record<string, string> = {};
+  const piScopeSummary: Record<string, string> = {};
+  const progressSummary: Record<string, string> = {};
 
-  for (const epic in epicAdvanced) {
-    const data = epicAdvanced[epic];
-    if (data.raid) raid[epic] = data.raid;
-    if (data.wsjf) wsjf[epic] = data.wsjf;
-    if (data.piScope) piScope[epic] = data.piScope;
-    if (data.progress) progress[epic] = data.progress;
+  for (const epicKey in epicAdvanced) {
+    const epicAnalyticsData = epicAdvanced[epicKey];
+    if (epicAnalyticsData.raid) raidSummary[epicKey] = epicAnalyticsData.raid;
+    if (epicAnalyticsData.wsjf) wsjfSummary[epicKey] = epicAnalyticsData.wsjf;
+    if (epicAnalyticsData.piScope) piScopeSummary[epicKey] = epicAnalyticsData.piScope;
+    if (epicAnalyticsData.progress) progressSummary[epicKey] = epicAnalyticsData.progress;
   }
 
   return {
     releases,
     sprints: filteredSprints,
     issues,
-    storyPoints: totalStoryPoints,
-    completedStoryPoints,
-    inProgressStoryPoints,
-    toDoStoryPoints,
+    storyPoints: breakdown.total,
+    completedStoryPoints: breakdown.completed,
+    inProgressStoryPoints: breakdown.inProgress,
+    toDoStoryPoints: breakdown.toDo,
     completedPercentage,
     ragStatus,
     epicBreakdown: epicStoryPoints,
@@ -293,12 +246,12 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
     currentSprintStats,
     previousSprintStats,
     futureSprintStats,
-    burnup,
+    burnup: burnupData,
     storyPointsCurrent,
     epicProgress,
-    raid,
-    wsjf,
-    piScope,
-    progress
+    raid: raidSummary,
+    wsjf: wsjfSummary,
+    piScope: piScopeSummary,
+    progress: progressSummary
   };
 } 

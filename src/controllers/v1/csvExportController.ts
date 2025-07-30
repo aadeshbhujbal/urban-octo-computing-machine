@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 // @ts-ignore
 import { Parser } from 'json2csv';
+import { createServiceError, ServiceError } from '../../types/errors';
 
 export const exportTeamCsv = async (req: Request, res: Response): Promise<void> => {
   const data = req.body.data;
@@ -14,8 +15,14 @@ export const exportTeamCsv = async (req: Request, res: Response): Promise<void> 
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="team_members.csv"');
     res.send(csv);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      const serviceError = createServiceError(err.message, 'CSV Export', 'exportTeamCsv');
+      res.status(500).json({ error: serviceError.message, code: serviceError.code });
+    } else {
+      const serviceError = createServiceError('Unknown error occurred', 'CSV Export', 'exportTeamCsv');
+      res.status(500).json({ error: serviceError.message, code: serviceError.code });
+    }
   }
 };
 
@@ -31,7 +38,13 @@ export const exportSprintsCsv = async (req: Request, res: Response): Promise<voi
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="sprints.csv"');
     res.send(csv);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      const serviceError = createServiceError(err.message, 'CSV Export', 'exportSprintsCsv');
+      res.status(500).json({ error: serviceError.message, code: serviceError.code });
+    } else {
+      const serviceError = createServiceError('Unknown error occurred', 'CSV Export', 'exportSprintsCsv');
+      res.status(500).json({ error: serviceError.message, code: serviceError.code });
+    }
   }
 }; 

@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { piPlanningSummaryService } from '../../services/piPlanningService';
 
 const router = Router();
@@ -147,7 +147,7 @@ router.get('/summary', async (req, res) => {
 });
 
 // New granular endpoints for PI Planning summary fields
-const getSummaryField = (field: string) => async (req: any, res: any) => {
+const getSummaryField = (field: string) => async (req: Request, res: Response) => {
   try {
     const { project, boardId, piStartDate, piEndDate } = req.query;
     if (!project || !boardId || !piStartDate || !piEndDate) {

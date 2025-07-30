@@ -14,7 +14,7 @@ import { normalize as normalizeString } from 'path';
 
 type GitlabInstance = InstanceType<typeof Gitlab>;
 
-function safeKey(key: unknown): string {
+function sanitizeKey(key: unknown): string {
   return typeof key === 'string' ? key : String(key);
 }
 
@@ -58,7 +58,7 @@ function calculateTeamMetrics(mrs: MergeRequestDetail[]): {
 
   const mergedMRs = mrs.filter(mr => mr.state === 'merged').length;
   const reviewTimes = mrs.filter(mr => mr.review_time !== undefined).map(mr => mr.review_time!);
-  const avgReviewTime = reviewTimes.length > 0 ? reviewTimes.reduce((a, b) => a + b, 0) / reviewTimes.length : 0;
+  const avgReviewTime = reviewTimes.length > 0 ? reviewTimes.reduce((timeA, timeB) => timeA + timeB, 0) / reviewTimes.length : 0;
   const participationRate = mrs.filter(mr => mr.reviewers.length > 0).length / totalMRs;
   
   // Code churn rate: (insertions + deletions) / number of MRs
@@ -237,7 +237,13 @@ function isMeaningfulComment(text: string): boolean {
   return true;
 }
 
-async function getContributionData(api: GitlabInstance, project: any, startDate: string, endDate: string): Promise<{
+interface GitLabProject {
+  id: number;
+  name?: string;
+  default_branch?: string;
+}
+
+async function getContributionData(api: GitlabInstance, project: GitLabProject, startDate: string, endDate: string): Promise<{
   contributions: DailyContributions;
   pushDetails: Record<string, PushDetail[]>;
 }> {
@@ -315,8 +321,8 @@ export async function getMergeRequestsHeatmap(options: MergeRequestsHeatmapOptio
   const userMapping = await getUserMapping(api, groupId);
 
   // Get all projects in the group
-  const projects = await api.Groups.projects(groupId, { perPage: 100 });
-  const userStats: Record<string, UserMergeRequestStats> = {};
+  const groupProjects = await api.Groups.projects(groupId, { perPage: 100 });
+  const userStatistics: Record<string, UserMergeRequestStats> = {};
   let totalMergeRequests = 0;
   let totalCommits = 0;
   let totalApprovals = 0;
@@ -327,7 +333,7 @@ export async function getMergeRequestsHeatmap(options: MergeRequestsHeatmapOptio
   const userPushDetails: Record<string, PushDetail[]> = {};
   const mergeRequestDetails: MergeRequestDetail[] = [];
 
-  for (const project of projects) {
+  for (const project of groupProjects) {
     // Get contribution data
     const { contributions, pushDetails } = await getContributionData(api, project, startDate, endDate);
     
@@ -350,88 +356,88 @@ export async function getMergeRequestsHeatmap(options: MergeRequestsHeatmapOptio
     }
 
     // Get all merge requests in the date range
-    const mrs = await api.MergeRequests.all({
+    const mergeRequests = await api.MergeRequests.all({
       projectId: project.id,
       createdAfter: startOfDay(new Date(startDate)).toISOString(),
       createdBefore: endOfDay(new Date(endDate)).toISOString(),
       perPage: 100,
     });
-    totalMergeRequests += mrs.length;
+    totalMergeRequests += mergeRequests.length;
 
-    for (const mr of mrs) {
-      const username = safeKey(typeof mr.author?.username === 'string' ? mr.author.username : 'unknown');
-      const authorName = typeof mr.author?.name === 'string' ? mr.author.name : username;
+    for (const mergeRequest of mergeRequests) {
+      const username = sanitizeKey(typeof mergeRequest.author?.username === 'string' ? mergeRequest.author.username : 'unknown');
+      const authorName = typeof mergeRequest.author?.name === 'string' ? mergeRequest.author.name : username;
       const name = userMapping.get(username.toLowerCase()) || authorName;
       
-      if (!userStats[username]) {
-        userStats[username] = {
+      if (!userStatistics[username]) {
+        userStatistics[username] = {
           username,
           name: String(name), // Ensure string type
           commits: 0,
           mergeRequests: 0,
           approvals: 0,
           comments: 0,
-          lastActiveDate: format(new Date(mr.created_at), 'yyyy-MM-dd')
+          lastActiveDate: format(new Date(mergeRequest.created_at), 'yyyy-MM-dd')
         };
       }
-      userStats[username].mergeRequests++;
+      userStatistics[username].mergeRequests++;
 
       // Update last active date if this MR is more recent
-      const mrDate = new Date(mr.created_at);
-      const lastActive = new Date(userStats[username].lastActiveDate!);
-      if (mrDate > lastActive) {
-        userStats[username].lastActiveDate = format(mrDate, 'yyyy-MM-dd');
+      const mergeRequestDate = new Date(mergeRequest.created_at);
+      const lastActive = new Date(userStatistics[username].lastActiveDate!);
+      if (mergeRequestDate > lastActive) {
+        userStatistics[username].lastActiveDate = format(mergeRequestDate, 'yyyy-MM-dd');
       }
 
       // Commits in MR
-      const commits = await api.MergeRequests.commits(project.id, mr.iid);
-      userStats[username].commits += commits.length;
+      const commits = await api.MergeRequests.commits(project.id, mergeRequest.iid);
+      userStatistics[username].commits += commits.length;
       totalCommits += commits.length;
 
       // Get MR details including diff stats
       try {
-        const mrDetails = await api.MergeRequests.show(project.id, mr.iid) as GitLabMRDetails;
-        const reviewers = (mrDetails.reviewers || []).map(r => r.username).filter((u): u is string => typeof u === 'string');
-        const labels = (mrDetails.labels || []).filter((l): l is string => typeof l === 'string');
+        const mergeRequestDetailData = await api.MergeRequests.show(project.id, mergeRequest.iid) as GitLabMRDetails;
+        const reviewers = (mergeRequestDetailData.reviewers || []).map(reviewer => reviewer.username).filter((username): username is string => typeof username === 'string');
+        const labels = (mergeRequestDetailData.labels || []).filter((label): label is string => typeof label === 'string');
         
         let reviewTime = undefined;
-        if (mrDetails.merged_at) {
-          reviewTime = (new Date(mrDetails.merged_at).getTime() - new Date(mr.created_at).getTime()) / (1000 * 60 * 60);
+        if (mergeRequestDetailData.merged_at) {
+          reviewTime = (new Date(mergeRequestDetailData.merged_at).getTime() - new Date(mergeRequest.created_at).getTime()) / (1000 * 60 * 60);
         }
 
         mergeRequestDetails.push({
-          id: mr.iid.toString(),
-          title: mr.title || '',
-          state: mr.state || 'unknown',
-          created_at: format(new Date(mr.created_at), 'yyyy-MM-dd\'T\'HH:mm:ss\'Z\''),
-          updated_at: format(new Date(mr.updated_at), 'yyyy-MM-dd\'T\'HH:mm:ss\'Z\''),
-          merged_at: mr.merged_at ? format(new Date(mr.merged_at), 'yyyy-MM-dd\'T\'HH:mm:ss\'Z\'') : undefined,
-          closed_at: mr.closed_at ? format(new Date(mr.closed_at), 'yyyy-MM-dd\'T\'HH:mm:ss\'Z\'') : undefined,
+          id: mergeRequest.iid.toString(),
+          title: mergeRequest.title || '',
+          state: mergeRequest.state || 'unknown',
+          created_at: format(new Date(mergeRequest.created_at), 'yyyy-MM-dd\'T\'HH:mm:ss\'Z\''),
+          updated_at: format(new Date(mergeRequest.updated_at), 'yyyy-MM-dd\'T\'HH:mm:ss\'Z\''),
+          merged_at: mergeRequest.merged_at ? format(new Date(mergeRequest.merged_at), 'yyyy-MM-dd\'T\'HH:mm:ss\'Z\'') : undefined,
+          closed_at: mergeRequest.closed_at ? format(new Date(mergeRequest.closed_at), 'yyyy-MM-dd\'T\'HH:mm:ss\'Z\'') : undefined,
           author: String(name), // Ensure string type
-          assignee: typeof mr.assignee?.username === 'string' ? mr.assignee.username : undefined,
+          assignee: typeof mergeRequest.assignee?.username === 'string' ? mergeRequest.assignee.username : undefined,
           reviewers,
           labels,
-          branch: typeof mr.source_branch === 'string' ? mr.source_branch : 'unknown',
-          target_branch: typeof mr.target_branch === 'string' ? mr.target_branch : 'main',
-          approval_duration: mr.merged_at ? (new Date(mr.merged_at).getTime() - new Date(mr.created_at).getTime()) / (1000 * 60 * 60) : undefined,
+          branch: typeof mergeRequest.source_branch === 'string' ? mergeRequest.source_branch : 'unknown',
+          target_branch: typeof mergeRequest.target_branch === 'string' ? mergeRequest.target_branch : 'main',
+          approval_duration: mergeRequest.merged_at ? (new Date(mergeRequest.merged_at).getTime() - new Date(mergeRequest.created_at).getTime()) / (1000 * 60 * 60) : undefined,
           review_time: reviewTime,
-          size: typeof mrDetails.changes_count === 'number' ? mrDetails.changes_count : undefined,
-          complexity: typeof mrDetails.changes_count === 'number' ? Math.log2(mrDetails.changes_count) : undefined
+          size: typeof mergeRequestDetailData.changes_count === 'number' ? mergeRequestDetailData.changes_count : undefined,
+          complexity: typeof mergeRequestDetailData.changes_count === 'number' ? Math.log2(mergeRequestDetailData.changes_count) : undefined
         });
       } catch (error) {
-        console.error(`Error fetching MR details for ${mr.iid}:`, error);
+        console.error(`Error fetching MR details for ${mergeRequest.iid}:`, error);
       }
 
       // Approvals
       try {
-        const approvals = await api.MergeRequestApprovals.approvalState(project.id, mr.iid);
+        const approvals = await api.MergeRequestApprovals.approvalState(project.id, mergeRequest.iid);
         if (approvals.approved_by && Array.isArray(approvals.approved_by)) {
           for (const approver of approvals.approved_by) {
-            const approverUsername = safeKey(typeof approver.user?.username === 'string' ? approver.user.username : 'unknown');
+            const approverUsername = sanitizeKey(typeof approver.user?.username === 'string' ? approver.user.username : 'unknown');
             const approverDisplayName = typeof approver.user?.name === 'string' ? approver.user.name : approverUsername;
             const approverName = userMapping.get(approverUsername.toLowerCase()) || approverDisplayName;
-            if (!userStats[approverUsername]) {
-              userStats[approverUsername] = {
+            if (!userStatistics[approverUsername]) {
+              userStatistics[approverUsername] = {
                 username: approverUsername,
                 name: String(approverName),
                 commits: 0,
@@ -441,14 +447,14 @@ export async function getMergeRequestsHeatmap(options: MergeRequestsHeatmapOptio
                 lastActiveDate: format(new Date(), 'yyyy-MM-dd')
               };
             }
-            userStats[approverUsername].approvals++;
+            userStatistics[approverUsername].approvals++;
             totalApprovals++;
           }
         }
       } catch {}
 
       // Comments
-      const notes = await api.MergeRequestNotes.all(project.id, mr.iid);
+      const notes = await api.MergeRequestNotes.all(project.id, mergeRequest.iid);
       for (const note of notes) {
         if (note.author && !note.system && !isBot(note.author.username)) {
           // Only count meaningful comments
@@ -456,11 +462,11 @@ export async function getMergeRequestsHeatmap(options: MergeRequestsHeatmapOptio
             continue;
           }
 
-          const noteUsername = safeKey(typeof note.author.username === 'string' ? note.author.username : 'unknown');
+          const noteUsername = sanitizeKey(typeof note.author.username === 'string' ? note.author.username : 'unknown');
           const noteDisplayName = typeof note.author.name === 'string' ? note.author.name : noteUsername;
           const noteName = userMapping.get(noteUsername.toLowerCase()) || noteDisplayName;
-          if (!userStats[noteUsername]) {
-            userStats[noteUsername] = {
+          if (!userStatistics[noteUsername]) {
+            userStatistics[noteUsername] = {
               username: noteUsername,
               name: String(noteName),
               commits: 0,
@@ -470,14 +476,14 @@ export async function getMergeRequestsHeatmap(options: MergeRequestsHeatmapOptio
               lastActiveDate: format(new Date(note.created_at), 'yyyy-MM-dd')
             };
           }
-          userStats[noteUsername].comments++;
+          userStatistics[noteUsername].comments++;
           totalComments++;
 
           // Update last active date if this comment is more recent
           const noteDate = new Date(note.created_at);
-          const lastActive = new Date(userStats[noteUsername].lastActiveDate!);
+          const lastActive = new Date(userStatistics[noteUsername].lastActiveDate!);
           if (noteDate > lastActive) {
-            userStats[noteUsername].lastActiveDate = format(noteDate, 'yyyy-MM-dd');
+            userStatistics[noteUsername].lastActiveDate = format(noteDate, 'yyyy-MM-dd');
         }
       }
     }
@@ -485,8 +491,8 @@ export async function getMergeRequestsHeatmap(options: MergeRequestsHeatmapOptio
   }
 
   // Calculate contribution scores
-  for (const stats of Object.values(userStats)) {
-    stats.contributionScore = calculateContributionScore(stats);
+  for (const userStat of Object.values(userStatistics)) {
+    userStat.contributionScore = calculateContributionScore(userStat);
   }
 
   // Calculate contribution trends
@@ -496,7 +502,7 @@ export async function getMergeRequestsHeatmap(options: MergeRequestsHeatmapOptio
   const teamMetrics = calculateTeamMetrics(mergeRequestDetails);
 
   return {
-    users: Object.values(userStats),
+    users: Object.values(userStatistics),
     totalMergeRequests,
     totalCommits,
     totalApprovals,
@@ -539,10 +545,10 @@ export async function getMergeRequestsAnalytics(options: MergeRequestsHeatmapOpt
   });
 
   // Get all projects in the group
-  const projects = await api.Groups.projects(groupId, { perPage: 100 });
+  const groupProjects = await api.Groups.projects(groupId, { perPage: 100 });
   const analytics: MergeRequestAnalytics[] = [];
 
-  for (const project of projects) {
+  for (const project of groupProjects) {
     // Get all merge requests in the date range
     const mergeRequests = await api.MergeRequests.all({
       projectId: project.id,
@@ -592,7 +598,11 @@ export async function testGitlabConnection(): Promise<{ status: string; message:
     // Ping the /user endpoint
     await api.Users.current();
     return { status: 'success', message: 'Connected to GitLab successfully' };
-  } catch (error: any) {
-    return { status: 'error', message: error.message };
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      return { status: 'error', message: error.message };
+    } else {
+      return { status: 'error', message: 'Unknown error occurred' };
+    }
   }
 }

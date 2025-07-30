@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { getReleasesFromJira, getSprintsFromJira, getIssuesFromJira, getEpicsFromJira } from '../../services/jiraService';
 import axios from 'axios';
+import { createServiceError, createAuthenticationError, ServiceError, AuthenticationError } from '../../types/errors';
 
 export const getReleases = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -68,7 +69,13 @@ export const testJiraConnection = async (req: Request, res: Response): Promise<v
       auth: { username: JIRA_USER, password: JIRA_TOKEN },
     });
     res.json({ status: 'success', message: 'Connected to Jira successfully' });
-  } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      const authError = createAuthenticationError(error.message, 'Jira');
+      res.status(500).json({ status: 'error', message: authError.message, code: authError.code });
+    } else {
+      const authError = createAuthenticationError('Unknown error occurred', 'Jira');
+      res.status(500).json({ status: 'error', message: authError.message, code: authError.code });
+    }
   }
 }; 

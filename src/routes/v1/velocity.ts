@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getVelocitySummary } from '../../services/velocityService';
+import { createServiceError, ServiceError } from '../../types/errors';
 
 const router = Router();
 
@@ -102,19 +103,25 @@ router.get('/data', async (req, res) => {
       sprintPrefix: sprintPrefix as string | undefined,
     });
     // Transform to data format
-    const labels = result.sprints.map(s => s.sprintName);
-    const committed = result.sprints.map(s => s.committed);
-    const completed = result.sprints.map(s => s.completed);
-    const allotted = result.sprints.map(s => s.committed); // Uses 'Allotted SPs' as committed
-    const added = result.sprints.map(s => s.addedStoryPoints);
-    const spillover = result.sprints.map(s => s.committed - s.completed);
-    const efficiency = result.sprints.map(s => s.efficiency);
-    const team_members = result.sprints.map(s => s.teamMembers);
-    const start_dates = result.sprints.map(s => s.startDate);
-    const end_dates = result.sprints.map(s => s.endDate);
-    res.json({ labels, committed, completed, allotted, added, spillover, efficiency, team_members, start_dates, end_dates });
+      const labels = result.sprints.map(sprint => sprint.sprintName);
+  const committed = result.sprints.map(sprint => sprint.committed);
+  const completed = result.sprints.map(sprint => sprint.completed);
+  const allotted = result.sprints.map(sprint => sprint.committed); // Uses 'Allotted SPs' as committed
+  const added = result.sprints.map(sprint => sprint.addedStoryPoints);
+  const spillover = result.sprints.map(sprint => sprint.committed - sprint.completed);
+  const efficiency = result.sprints.map(sprint => sprint.efficiency);
+  const teamMembers = result.sprints.map(sprint => sprint.teamMembers);
+  const startDates = result.sprints.map(sprint => sprint.startDate);
+  const endDates = result.sprints.map(sprint => sprint.endDate);
+    res.json({ labels, committed, completed, allotted, added, spillover, efficiency, teamMembers, startDates, endDates });
   } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
+    if (err instanceof Error) {
+      const serviceError = createServiceError(err.message, 'Velocity Service', 'getVelocitySummary');
+      res.status(500).json({ error: serviceError.message, code: serviceError.code });
+    } else {
+      const serviceError = createServiceError('Unknown error occurred', 'Velocity Service', 'getVelocitySummary');
+      res.status(500).json({ error: serviceError.message, code: serviceError.code });
+    }
   }
 });
 
@@ -213,7 +220,13 @@ router.get('/summary', async (req, res) => {
     });
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
+    if (err instanceof Error) {
+      const serviceError = createServiceError(err.message, 'Velocity Service', 'getVelocitySummary');
+      res.status(500).json({ error: serviceError.message, code: serviceError.code });
+    } else {
+      const serviceError = createServiceError('Unknown error occurred', 'Velocity Service', 'getVelocitySummary');
+      res.status(500).json({ error: serviceError.message, code: serviceError.code });
+    }
   }
 });
 
