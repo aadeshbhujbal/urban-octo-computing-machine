@@ -44,30 +44,6 @@ This microservice provides a full-featured analytics/reporting backend, converte
 - **GET `/api/v1/merge-requests/analytics`**  
   Returns per-merge-request analytics (author, status, project, etc.).
   - **Query params:** `groupId`, `startDate`, `endDate`
-- **POST `/api/v1/merge-requests/export-csv`**  
-  Exports merge request analytics as CSV.
-
----
-
-### Text Analytics
-- **POST `/api/v1/text/keyphrases`**  
-  Extracts key phrases from an array of input texts.
-  - **Body:** `{ "texts": [ ... ] }`
-  - **Response:** `{ "keyPhrases": [ ... ] }`
-
----
-
-### CSV Export
-- **POST `/api/v1/csv/export-team-csv`**  
-  Exports team member data as CSV.
-- **POST `/api/v1/csv/export-sprints-csv`**  
-  Exports sprints data as CSV.
-
----
-
-### HTML Report
-- **POST `/api/v1/reports/html`**  
-  Generates an HTML report from analytics data.
 
 ---
 
@@ -103,7 +79,6 @@ This microservice provides a full-featured analytics/reporting backend, converte
 ## Features Summary
 - Full parity with original Python analytics/reporting scripts
 - Modular endpoints for PI Planning, Velocity, Merge Requests, Jira, Confluence, and more
-- CSV and HTML export capabilities
 - All endpoints documented with Swagger/OpenAPI (viewable in Swagger UI)
 - No UI included (API only)
 

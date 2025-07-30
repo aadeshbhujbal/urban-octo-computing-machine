@@ -460,26 +460,6 @@
       }
     },
     {
-      "name": "Text Analytics - Extract Key Phrases",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"texts\": [\"example text\"]\n}"
-        },
-        "url": {
-          "raw": "http://localhost:3000/api/v1/text/keyphrases",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "3000",
-          "path": ["api", "v1", "text", "keyphrases"]
-        }
-      }
-    },
-    {
       "name": "Confluence - Update Page",
       "request": {
         "method": "POST",
@@ -496,66 +476,6 @@
           "host": ["localhost"],
           "port": "3000",
           "path": ["api", "v1", "confluence", "update"]
-        }
-      }
-    },
-    {
-      "name": "CSV Export - Team CSV",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"team\": [\n    {\"name\": \"Alice\", \"role\": \"Developer\"}\n  ]\n}"
-        },
-        "url": {
-          "raw": "http://localhost:3000/api/v1/csv/export-team-csv",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "3000",
-          "path": ["api", "v1", "csv", "export-team-csv"]
-        }
-      }
-    },
-    {
-      "name": "CSV Export - Sprints CSV",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"sprints\": [\n    {\"name\": \"Sprint 1\", \"startDate\": \"2024-01-01\", \"endDate\": \"2024-01-15\"}\n  ]\n}"
-        },
-        "url": {
-          "raw": "http://localhost:3000/api/v1/csv/export-sprints-csv",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "3000",
-          "path": ["api", "v1", "csv", "export-sprints-csv"]
-        }
-      }
-    },
-    {
-      "name": "HTML Report - Generate",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"data\": {}\n}"
-        },
-        "url": {
-          "raw": "http://localhost:3000/api/v1/reports/html",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "3000",
-          "path": ["api", "v1", "reports", "html"]
         }
       }
     },

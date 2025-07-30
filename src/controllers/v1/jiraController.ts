@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { getReleasesFromJira, getSprintsFromJira, getIssuesFromJira, getEpicsFromJira } from '../../services/jiraService';
-import axios from 'axios';
+import { fetchWithProxy } from '../../utils/fetchWithProxy';
 import { createServiceError, createAuthenticationError, ServiceError, AuthenticationError } from '../../types/errors';
 
 export const getReleases = async (req: Request, res: Response): Promise<void> => {
@@ -65,9 +65,15 @@ export const testJiraConnection = async (req: Request, res: Response): Promise<v
   }
   try {
     // Ping the my profile endpoint as a simple health check
-    await axios.get(`${JIRA_URL}/rest/api/3/myself`, {
+    const response = await fetchWithProxy(`${JIRA_URL}/rest/api/3/myself`, {
+      method: 'GET',
       auth: { username: JIRA_USER, password: JIRA_TOKEN },
     });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
     res.json({ status: 'success', message: 'Connected to Jira successfully' });
   } catch (error: unknown) {
     if (error instanceof Error) {
