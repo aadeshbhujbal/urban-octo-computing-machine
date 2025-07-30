@@ -1,5 +1,5 @@
 // @ts-ignore
-import axios from 'axios';
+import { fetchWithProxy } from '../../utils/fetchWithProxy';
 import { Request, Response } from 'express';
 import { createServiceError, createAuthenticationError, ServiceError, AuthenticationError } from '../../types/errors';
 
@@ -10,23 +10,30 @@ export const updateConfluencePage = async (req: Request, res: Response): Promise
     return;
   }
   try {
-    const response = await axios.put(
+    const response = await fetchWithProxy(
       `https://your-domain.atlassian.net/wiki/rest/api/content/${pageId}`,
       {
-        id: pageId,
-        type: 'page',
-        title,
-        body: { storage: { value: body, representation: 'storage' } },
-        version: { number: 2 }, // You should fetch and increment the current version
-      },
-      {
+        method: 'PUT',
         headers: {
           'Authorization': `Basic ${Buffer.from(`${auth.username}:${auth.token}`).toString('base64')}`,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          id: pageId,
+          type: 'page',
+          title,
+          body: { storage: { value: body, representation: 'storage' } },
+          version: { number: 2 }, // You should fetch and increment the current version
+        }),
       }
     );
-    res.json({ status: 'success', data: response.data });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    res.json({ status: 'success', data });
   } catch (error: unknown) {
     if (error instanceof Error) {
       const serviceError = createServiceError(error.message, 'Confluence', 'updatePage');
@@ -48,12 +55,18 @@ export const testConfluenceConnection = async (req: Request, res: Response): Pro
   }
   try {
     // Ping the current user endpoint as a simple health check
-    await axios.get(`${confluenceUrl}/wiki/rest/api/user/current`, {
+    const response = await fetchWithProxy(`${confluenceUrl}/wiki/rest/api/user/current`, {
+      method: 'GET',
       headers: {
         'Authorization': `Basic ${Buffer.from(`${username}:${token}`).toString('base64')}`,
         'Content-Type': 'application/json',
       },
     });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
     res.json({ status: 'success', message: 'Connected to Confluence successfully' });
   } catch (error: unknown) {
     if (error instanceof Error) {

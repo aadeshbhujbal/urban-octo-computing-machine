@@ -14,9 +14,7 @@
   "type": "commonjs",
   "dependencies": {
     "@gitbeaker/node": "^35.8.1",
-    "@types/axios": "^0.9.36",
     "@types/express": "^4.17.23",
-    "axios": "^1.6.7",
     "compromise": "^13.11.3",
     "csv-parse": "^5.6.0",
     "date-fns": "^4.1.0",

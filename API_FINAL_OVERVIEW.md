@@ -29,17 +29,6 @@ This document summarizes the complete set of REST API endpoints implemented in t
 ### Merge Requests Analytics
 - **GET `/api/v1/merge-requests/heatmap`** — Per-user MR/commit/approval/comment stats (heatmap)
 - **GET `/api/v1/merge-requests/analytics`** — Per-merge-request analytics (author, status, project, etc.)
-- **POST `/api/v1/merge-requests/export-csv`** — Export merge request analytics as CSV
-
-### Text Analytics
-- **POST `/api/v1/text/keyphrases`** — Extract key phrases from an array of input texts
-
-### CSV Export (NEW, CORRECT PATHS)
-- **POST `/api/v1/csv/export-team-csv`** — Export team member data as CSV
-- **POST `/api/v1/csv/export-sprints-csv`** — Export sprints data as CSV
-
-### HTML Report
-- **POST `/api/v1/reports/html`** — Generate an HTML report from analytics data
 
 ### Confluence Integration
 - **POST `/api/v1/confluence/update`** — Update a Confluence page with analytics data
@@ -62,7 +51,6 @@ This document summarizes the complete set of REST API endpoints implemented in t
 ## Migration Notes & Parity
 - All analytics/reporting features from the original Python scripts are now available as REST API endpoints.
 - Endpoint paths are clear, modular, and grouped by feature.
-- CSV export endpoints have been moved from `/api/v1/health/` to `/api/v1/csv/` for clarity.
 - All endpoints are documented with Swagger/OpenAPI and ready for frontend or automation use.
 - No UI is included (API only).
 

@@ -2,10 +2,8 @@ import express from 'express';
 import dotenv from 'dotenv';
 import healthRoutes from './routes/health';
 import jiraRoutes from './routes/v1/jira';
-import piPlanningRoutes from './routes/v1/piPlanning';
-import mergeRequestsRoutes from './routes/v1/mergeRequests';
-import velocityRoutes from './routes/v1/velocity';
 import orchestrationRoutes from './routes/v1/orchestration';
+import apiRoutes from './routes/index';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJSDoc from 'swagger-jsdoc';
 
@@ -46,13 +44,10 @@ app.use('/api/health', healthRoutes);
 
 // API Versioning: Mount all v1 routes under /api/v1
 app.use('/api/v1/jira', jiraRoutes);
-app.use('/api/v1/pi-planning', piPlanningRoutes);
-app.use('/api/v1/merge-requests', mergeRequestsRoutes);
-app.use('/api/v1/velocity', velocityRoutes);
 app.use('/api/v1/orchestration', orchestrationRoutes);
 
-
-// e.g. app.use('/api/v1/jira', jiraRoutes);
+// Use centralized API routes
+app.use('/', apiRoutes);
 
 // Catch-all 404 handler for API
 app.use('/api/v1', (req, res) => {

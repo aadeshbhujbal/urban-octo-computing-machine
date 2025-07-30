@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { getMergeRequestsHeatmap, getMergeRequestsAnalytics } from '../../services/mergeRequestsService';
-import { exportMergeRequestsCsv } from '../../controllers/v1/mergeRequestsExportController';
 
 const router = Router();
 
@@ -170,7 +169,5 @@ router.get('/analytics', async (req, res) => {
     res.status(500).json({ error: (err as Error).message });
   }
 });
-
-router.post('/export-csv', exportMergeRequestsCsv);
 
 export default router; 
