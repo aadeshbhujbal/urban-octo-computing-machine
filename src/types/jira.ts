@@ -48,7 +48,7 @@ export interface JiraIssueFields {
   assignee?: { accountId: string; displayName: string };
   created?: string;
   updated?: string;
-  customfield_10341?: Array<{ id: number; name: string }> | { id: number; name: string } | null; // Sprint
+  customfield_10341?: Array<{ id: number; name: string }>; // Sprint
   customfield_30160?: string; // RAID
   customfield_42105?: string; // WSJF
   customfield_20046?: string; // PI Scope
@@ -71,8 +71,41 @@ export interface JiraIssue {
 }
 
 export interface JiraEpic {
+  id: string;
+  key: string;
+  fields: JiraIssueFields;
+}
+
+// New types for API responses
+export interface JiraSprintResponse {
   id: number;
   name: string;
-  summary?: string;
-  done?: boolean;
+  state: string;
+  startDate: string;
+  endDate: string;
+  goal?: string;
+  originBoardId: number;
+  completeDate?: string;
+}
+
+export interface JiraVelocityStats {
+  velocityStatEntries: Record<string, {
+    estimated: { value: number };
+    completed: { value: number };
+  }>;
+  sprints: JiraSprint[];
+}
+
+export interface JiraSearchResponse {
+  issues: JiraIssue[];
+  total: number;
+  startAt: number;
+  maxResults: number;
+}
+
+export interface JiraSprintListResponse {
+  values: JiraSprintResponse[];
+  isLast: boolean;
+  maxResults: number;
+  startAt: number;
 } 

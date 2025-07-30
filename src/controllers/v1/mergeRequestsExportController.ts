@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 // @ts-ignore
 import { Parser } from 'json2csv';
+import { createServiceError, ServiceError } from '../../types/errors';
 
 /**
  * @swagger
@@ -46,8 +47,15 @@ export const exportMergeRequestsCsv = async (req: Request, res: Response): Promi
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="merge_requests.csv"');
     res.send(csv);
-  } catch (err: any) {
-    console.error('Error exporting merge requests to CSV:', err);
-    res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      const serviceError = createServiceError(err.message, 'CSV Export', 'exportMergeRequestsCsv');
+      console.error('Error exporting merge requests to CSV:', serviceError.message);
+      res.status(500).json({ error: serviceError.message, code: serviceError.code });
+    } else {
+      const serviceError = createServiceError('Unknown error occurred', 'CSV Export', 'exportMergeRequestsCsv');
+      console.error('Error exporting merge requests to CSV:', serviceError.message);
+      res.status(500).json({ error: serviceError.message, code: serviceError.code });
+    }
   }
 }; 
