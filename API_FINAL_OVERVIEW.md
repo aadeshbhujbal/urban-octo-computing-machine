@@ -7,9 +7,19 @@ This document summarizes the complete set of REST API endpoints implemented in t
 ## API Endpoints
 
 ### PI Planning
+- **GET `/api/v1/pi-planning/summary`** — Comprehensive PI Planning analytics including all key metrics and breakdowns
 - **GET `/api/v1/pi-planning`** — Complete PI Planning data including sprints, story points, epics, releases, and current sprint information
   - **Parameters:** `projectName`, `boardId`, `piStartDate`, `piEndDate`, `sprintIncludeFilter` (optional), `sprintExcludeFilter` (optional)
   - **Returns:** Project sprints, story points breakdown, PI epics, releases, current sprints, and sprint details
+- **GET `/api/v1/pi-planning/releases`** — Release information for the PI Planning period
+- **GET `/api/v1/pi-planning/sprints`** — Detailed sprint information for the PI Planning period
+- **GET `/api/v1/pi-planning/issues`** — List of issues for the PI Planning period
+- **GET `/api/v1/pi-planning/rag-status`** — RAG (Red, Amber, Green) status for PI Planning
+- **GET `/api/v1/pi-planning/burnup`** — Burn-up chart data for PI Planning
+- **GET `/api/v1/pi-planning/raid`** — RAID (Risks, Assumptions, Issues, Dependencies) data for PI Planning
+- **GET `/api/v1/pi-planning/wsjf`** — WSJF (Weighted Shortest Job First) metrics for PI Planning
+- **GET `/api/v1/pi-planning/pi-scope`** — PI scope information for PI Planning
+- **GET `/api/v1/pi-planning/progress`** — Progress metrics for PI Planning
 - **GET `/api/v1/pi-planning/epic-breakdown`** — Epic breakdown with story points, status, and additional information
 - **GET `/api/v1/pi-planning/sprint-breakdown`** — Sprint breakdown with story points and status information
 - **GET `/api/v1/pi-planning/story-points`** — Detailed story points analysis with breakdown by status and epics

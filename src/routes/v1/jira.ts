@@ -229,7 +229,7 @@ router.get('/epics', async (req, res) => {
  *         name: includeDetails
  *         schema:
  *           type: boolean
- *         description: Include detailed board information (default: false)
+ *         description: "Include detailed board information (default: false)"
  *     responses:
  *       200:
  *         description: Boards array

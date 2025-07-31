@@ -481,6 +481,339 @@
       }
     },
     {
+      "name": "PI Planning - Releases",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/releases?projectName={{projectName}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "releases"],
+          "query": [
+            {
+              "key": "projectName",
+              "value": "{{projectName}}",
+              "description": "Jira project name (e.g., FRN)"
+            },
+            {
+              "key": "boardId",
+              "value": "{{boardId}}",
+              "description": "Jira board ID (e.g., 59059)"
+            },
+            {
+              "key": "piStartDate",
+              "value": "{{piStartDate}}",
+              "description": "PI start date (YYYY-MM-DD)"
+            },
+            {
+              "key": "piEndDate",
+              "value": "{{piEndDate}}",
+              "description": "PI end date (YYYY-MM-DD)"
+            }
+          ]
+        },
+        "description": "Returns release information for the PI Planning period."
+      }
+    },
+    {
+      "name": "PI Planning - Sprints",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/sprints?projectName={{projectName}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "sprints"],
+          "query": [
+            {
+              "key": "projectName",
+              "value": "{{projectName}}",
+              "description": "Jira project name (e.g., FRN)"
+            },
+            {
+              "key": "boardId",
+              "value": "{{boardId}}",
+              "description": "Jira board ID (e.g., 59059)"
+            },
+            {
+              "key": "piStartDate",
+              "value": "{{piStartDate}}",
+              "description": "PI start date (YYYY-MM-DD)"
+            },
+            {
+              "key": "piEndDate",
+              "value": "{{piEndDate}}",
+              "description": "PI end date (YYYY-MM-DD)"
+            }
+          ]
+        },
+        "description": "Returns detailed sprint information for the PI Planning period."
+      }
+    },
+    {
+      "name": "PI Planning - Issues",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/issues?projectName={{projectName}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "issues"],
+          "query": [
+            {
+              "key": "projectName",
+              "value": "{{projectName}}",
+              "description": "Jira project name (e.g., FRN)"
+            },
+            {
+              "key": "boardId",
+              "value": "{{boardId}}",
+              "description": "Jira board ID (e.g., 59059)"
+            },
+            {
+              "key": "piStartDate",
+              "value": "{{piStartDate}}",
+              "description": "PI start date (YYYY-MM-DD)"
+            },
+            {
+              "key": "piEndDate",
+              "value": "{{piEndDate}}",
+              "description": "PI end date (YYYY-MM-DD)"
+            }
+          ]
+        },
+        "description": "Returns list of issues for the PI Planning period."
+      }
+    },
+    {
+      "name": "PI Planning - RAG Status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/rag-status?projectName={{projectName}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "rag-status"],
+          "query": [
+            {
+              "key": "projectName",
+              "value": "{{projectName}}",
+              "description": "Jira project name (e.g., FRN)"
+            },
+            {
+              "key": "boardId",
+              "value": "{{boardId}}",
+              "description": "Jira board ID (e.g., 59059)"
+            },
+            {
+              "key": "piStartDate",
+              "value": "{{piStartDate}}",
+              "description": "PI start date (YYYY-MM-DD)"
+            },
+            {
+              "key": "piEndDate",
+              "value": "{{piEndDate}}",
+              "description": "PI end date (YYYY-MM-DD)"
+            }
+          ]
+        },
+        "description": "Returns RAG (Red, Amber, Green) status for PI Planning."
+      }
+    },
+    {
+      "name": "PI Planning - Burn-up Charts",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/burnup?projectName={{projectName}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "burnup"],
+          "query": [
+            {
+              "key": "projectName",
+              "value": "{{projectName}}",
+              "description": "Jira project name (e.g., FRN)"
+            },
+            {
+              "key": "boardId",
+              "value": "{{boardId}}",
+              "description": "Jira board ID (e.g., 59059)"
+            },
+            {
+              "key": "piStartDate",
+              "value": "{{piStartDate}}",
+              "description": "PI start date (YYYY-MM-DD)"
+            },
+            {
+              "key": "piEndDate",
+              "value": "{{piEndDate}}",
+              "description": "PI end date (YYYY-MM-DD)"
+            }
+          ]
+        },
+        "description": "Returns burn-up chart data for PI Planning."
+      }
+    },
+    {
+      "name": "PI Planning - RAID Data",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/raid?projectName={{projectName}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "raid"],
+          "query": [
+            {
+              "key": "projectName",
+              "value": "{{projectName}}",
+              "description": "Jira project name (e.g., FRN)"
+            },
+            {
+              "key": "boardId",
+              "value": "{{boardId}}",
+              "description": "Jira board ID (e.g., 59059)"
+            },
+            {
+              "key": "piStartDate",
+              "value": "{{piStartDate}}",
+              "description": "PI start date (YYYY-MM-DD)"
+            },
+            {
+              "key": "piEndDate",
+              "value": "{{piEndDate}}",
+              "description": "PI end date (YYYY-MM-DD)"
+            }
+          ]
+        },
+        "description": "Returns RAID (Risks, Assumptions, Issues, Dependencies) data for PI Planning."
+      }
+    },
+    {
+      "name": "PI Planning - WSJF Metrics",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/wsjf?projectName={{projectName}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "wsjf"],
+          "query": [
+            {
+              "key": "projectName",
+              "value": "{{projectName}}",
+              "description": "Jira project name (e.g., FRN)"
+            },
+            {
+              "key": "boardId",
+              "value": "{{boardId}}",
+              "description": "Jira board ID (e.g., 59059)"
+            },
+            {
+              "key": "piStartDate",
+              "value": "{{piStartDate}}",
+              "description": "PI start date (YYYY-MM-DD)"
+            },
+            {
+              "key": "piEndDate",
+              "value": "{{piEndDate}}",
+              "description": "PI end date (YYYY-MM-DD)"
+            }
+          ]
+        },
+        "description": "Returns WSJF (Weighted Shortest Job First) metrics for PI Planning."
+      }
+    },
+    {
+      "name": "PI Planning - PI Scope",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/pi-scope?projectName={{projectName}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "pi-scope"],
+          "query": [
+            {
+              "key": "projectName",
+              "value": "{{projectName}}",
+              "description": "Jira project name (e.g., FRN)"
+            },
+            {
+              "key": "boardId",
+              "value": "{{boardId}}",
+              "description": "Jira board ID (e.g., 59059)"
+            },
+            {
+              "key": "piStartDate",
+              "value": "{{piStartDate}}",
+              "description": "PI start date (YYYY-MM-DD)"
+            },
+            {
+              "key": "piEndDate",
+              "value": "{{piEndDate}}",
+              "description": "PI end date (YYYY-MM-DD)"
+            }
+          ]
+        },
+        "description": "Returns PI scope information for PI Planning."
+      }
+    },
+    {
+      "name": "PI Planning - Progress Metrics",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/pi-planning/progress?projectName={{projectName}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "pi-planning", "progress"],
+          "query": [
+            {
+              "key": "projectName",
+              "value": "{{projectName}}",
+              "description": "Jira project name (e.g., FRN)"
+            },
+            {
+              "key": "boardId",
+              "value": "{{boardId}}",
+              "description": "Jira board ID (e.g., 59059)"
+            },
+            {
+              "key": "piStartDate",
+              "value": "{{piStartDate}}",
+              "description": "PI start date (YYYY-MM-DD)"
+            },
+            {
+              "key": "piEndDate",
+              "value": "{{piEndDate}}",
+              "description": "PI end date (YYYY-MM-DD)"
+            }
+          ]
+        },
+        "description": "Returns progress metrics for PI Planning."
+      }
+    },
+    {
       "name": "Merge Requests Heatmap",
       "request": {
         "method": "GET",
