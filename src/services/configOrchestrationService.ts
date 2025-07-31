@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { parse } from 'csv-parse/sync';
-import { piPlanningSummaryService } from './piPlanningService';
+import { getPiPlanningData } from './piPlanningService';
 import { getMergeRequestsHeatmap } from './mergeRequestsService';
 import { getVelocitySummary } from './velocityService';
 // import { piPlanningSummaryService } from './piPlanningService';
@@ -49,11 +49,13 @@ export async function runConfigOrchestration(): Promise<OrchestrationResult[]> {
   for (const configRow of configRecords) {
     try {
       const [piPlanningSummary, mergeRequestsData, velocityData] = await Promise.all([
-        piPlanningSummaryService({
-          project: configRow.Project,
+        getPiPlanningData({
+          projectName: configRow.Project,
           boardId: configRow.JiraBoardId,
           piStartDate: configRow.PIStartDate,
           piEndDate: configRow.PIEndDate,
+          sprintIncludeFilter: configRow.IncludedSprintName || undefined,
+          sprintExcludeFilter: configRow.ExcludedSprintName || undefined,
         }),
         getMergeRequestsHeatmap({
           groupId: configRow.GitlabDashboardUrl,

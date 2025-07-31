@@ -98,15 +98,15 @@ export async function getSprintsFromJira(
   
   try {
     const credentials = validateJiraCredentials();
-    
-    const {
-      startDate,
-      endDate,
-      timezone = 'UTC',
-      sprintExcludeFilter,
-      sprintIncludeFilter,
-      originBoardId = true
-    } = options || {};
+
+  const {
+    startDate,
+    endDate,
+    timezone = 'UTC',
+    sprintExcludeFilter,
+    sprintIncludeFilter,
+    originBoardId = true
+  } = options || {};
 
     // Convert string dates to timezone-aware datetime objects
     let startDateObj: Date | null = null;
@@ -139,21 +139,21 @@ export async function getSprintsFromJira(
       name: string;
       startDate: Date;
     }> = [];
-
+    
     while (true) {
       // Get a batch of sprints
-      const queryParams = new URLSearchParams({
-        state,
-        startAt: startAt.toString(),
-        maxResults: maxResults.toString()
-      });
-      
+        const queryParams = new URLSearchParams({
+          state,
+          startAt: startAt.toString(),
+          maxResults: maxResults.toString()
+        });
+        
       const sprintResponse = await fetchWithProxy(
         `${credentials.url}/rest/agile/1.0/board/${boardId}/sprint?${queryParams}`,
         { auth: { username: credentials.user, password: credentials.token } }
       );
-
-      if (!sprintResponse.ok) {
+        
+        if (!sprintResponse.ok) {
         throw new Error(`Failed to fetch sprints: ${sprintResponse.status} ${sprintResponse.statusText}`);
       }
 
@@ -168,48 +168,48 @@ export async function getSprintsFromJira(
         }>;
         isLast: boolean;
       };
-
-      if (!sprintData.values || sprintData.values.length === 0) {
-        break;
-      }
+        
+        if (!sprintData.values || sprintData.values.length === 0) {
+          break;
+        }
 
       // Process this batch immediately
-      for (const sprint of sprintData.values) {
+        for (const sprint of sprintData.values) {
         // Skip if missing required fields
-        if (!sprint.id || !sprint.name) {
-          continue;
-        }
-        
+          if (!sprint.id || !sprint.name) {
+            continue;
+          }
+          
         // Skip sprints without dates
         if (!sprint.startDate || !sprint.endDate) {
-          continue;
-        }
-
+            continue;
+          }
+          
         // Filter by origin board ID if requested
         if (originBoardId && sprint.originBoardId && parseInt(sprint.originBoardId) !== parseInt(boardId)) {
-          continue;
-        }
-
+            continue;
+          }
+          
         // Filter by sprint name filters
-        if (sprintIncludeFilter && !sprint.name.includes(sprintIncludeFilter)) {
-          continue;
-        }
-        if (sprintExcludeFilter && sprint.name.includes(sprintExcludeFilter)) {
-          continue;
-        }
-
-        try {
-          // Parse dates with timezone awareness
-          const sprintStart = new Date(sprint.startDate);
-          const sprintEnd = new Date(sprint.endDate);
-
-          // Skip invalid dates
-          if (isNaN(sprintStart.getTime()) || isNaN(sprintEnd.getTime())) {
+          if (sprintIncludeFilter && !sprint.name.includes(sprintIncludeFilter)) {
+            continue;
+          }
+          if (sprintExcludeFilter && sprint.name.includes(sprintExcludeFilter)) {
             continue;
           }
 
+          try {
+          // Parse dates with timezone awareness
+          const sprintStart = new Date(sprint.startDate);
+          const sprintEnd = new Date(sprint.endDate);
+            
+          // Skip invalid dates
+            if (isNaN(sprintStart.getTime()) || isNaN(sprintEnd.getTime())) {
+              continue;
+            }
+            
           // Check if sprint is within the date range (match Python logic)
-          if (startDateObj && endDateObj) {
+            if (startDateObj && endDateObj) {
             // Only include sprints that overlap with the date range AND start after start date
             if (!(sprintEnd < startDateObj || sprintStart > endDateObj)) {
               if (sprintStart > startDateObj) {
@@ -219,16 +219,16 @@ export async function getSprintsFromJira(
                   startDate: sprintStart
                 });
               }
-            }
-          } else if (startDateObj) {
+              }
+            } else if (startDateObj) {
             if (sprintStart > startDateObj) {
               filteredSprints.push({
                 id: sprint.id,
                 name: sprint.name,
                 startDate: sprintStart
               });
-            }
-          } else if (endDateObj) {
+              }
+            } else if (endDateObj) {
             if (sprintEnd <= endDateObj) {
               filteredSprints.push({
                 id: sprint.id,
@@ -246,15 +246,15 @@ export async function getSprintsFromJira(
 
         } catch (error) {
           console.error(`Error parsing dates for sprint ${sprint.id}:`, error);
-          continue;
+            continue;
+          }
         }
-      }
-
+        
       // Early termination if we've processed all sprints
-      if (sprintData.isLast || sprintData.values.length < maxResults) {
-        break;
-      }
-
+        if (sprintData.isLast || sprintData.values.length < maxResults) {
+          break;
+        }
+        
       startAt += maxResults;
     }
 

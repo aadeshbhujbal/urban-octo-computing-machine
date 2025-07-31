@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { getSprintsFromJira, getReleasesFromJira } from '../../services/jiraService';
-import { piPlanningSummaryService } from '../../services/piPlanningService';
+import { getPiPlanningData } from '../../services/piPlanningService';
 import { getVelocitySummary } from '../../services/velocityService';
 import { getCurrentSprintObjectives } from '../../services/sprintService';
 
@@ -30,13 +30,7 @@ export async function getCurrentSummary(req: Request, res: Response) {
 
     // 3. PI Planning current sprints - use current sprint dates if no PI dates provided
     let piSummary = null;
-    let currentPiSprints: Array<{
-      id: number;
-      name?: string;
-      startDate?: string;
-      endDate?: string;
-      state?: string;
-    }> = [];
+    let currentPiSprints: string[] = [];
     let currentPI = null;
     
     // Use current sprint dates for PI Planning if no PI dates provided
@@ -67,8 +61,8 @@ export async function getCurrentSummary(req: Request, res: Response) {
     }
     
     try {
-      piSummary = await piPlanningSummaryService({
-        project: project as string,
+      piSummary = await getPiPlanningData({
+        projectName: project as string,
         boardId: boardId as string,
         piStartDate: piStartDateToUse,
         piEndDate: piEndDateToUse,
