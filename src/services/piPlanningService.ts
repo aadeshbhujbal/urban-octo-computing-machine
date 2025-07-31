@@ -25,6 +25,12 @@ interface ExtendedJiraIssueFields {
     endDate: string;
     name: string;
   }>;
+  customfield_21675?: string;  // Additional comments field
+  customfield_30160?: string;  // RAID field
+  customfield_20046?: string;  // PI Scope field
+  customfield_30195?: string;  // PI Progress field
+  customfield_42105?: string;  // WSJF field
+  fixVersions?: Array<{ name: string }>;
   parent?: { key: string };
   status?: { name: string };
 }
@@ -44,6 +50,28 @@ interface SprintDetails {
   name: string;
 }
 
+interface EpicDetail {
+  epicKey: string;
+  epicSummary: string;
+  storyPoints: number;
+  status: string;
+  additionalComments?: string;
+  raid?: string;
+  piScope?: string;
+  piProgress?: string;
+  wsjf?: string;
+}
+
+interface StoryPointsBreakdown {
+  byStatus: {
+    completed: number;
+    inProgress: number;
+    toDo: number;
+  };
+  byEpic: Record<string, number>;
+  bySprint: Record<string, number>;
+}
+
 interface PiPlanningResult {
   projectSprints: string[];
   totalStoryPoints: number;
@@ -51,9 +79,14 @@ interface PiPlanningResult {
   inProgressStoryPoints: number;
   toDoStoryPoints: number;
   piEpics: string[];
+  epicDetails: EpicDetail[];
   releases: any[];
   currentSprints: string[];
   sprints: Record<string, SprintDetails>;
+  storyPointsBreakdown: StoryPointsBreakdown;
+  parentDescriptions: Record<string, string>;
+  fixVersions: string[];
+  issuesWithoutFixVersion: number;
 }
 
 export async function getPiPlanningData(options: PiPlanningOptions): Promise<PiPlanningResult> {
@@ -188,7 +221,63 @@ export async function getPiPlanningData(options: PiPlanningOptions): Promise<PiP
     // 5. Get releases
     const releases = await getReleasesFromJira(projectName);
 
-    // 6. Return results
+    // 6. Calculate story points breakdown
+    const storyPointsBreakdown: StoryPointsBreakdown = {
+      byStatus: {
+        completed: Math.round(completedStoryPoints),
+        inProgress: Math.round(inProgressStoryPoints),
+        toDo: Math.round(toDoStoryPoints)
+      },
+      byEpic: {},
+      bySprint: {}
+    };
+
+    // 7. Build epic details (matching Python's snc_df structure)
+    const epicDetails: EpicDetail[] = [];
+    const parentDescriptions: Record<string, string> = {};
+    const fixVersions: string[] = [];
+    let issuesWithoutFixVersion = 0;
+
+    for (const issue of issues as Array<{ fields: ExtendedJiraIssueFields; key: string }>) {
+      const storyPoints = issue.fields.storyPoints || issue.fields.customfield_10002 || 0;
+      const statusName = issue.fields.status?.name || 'Unknown';
+      
+      // Track parent descriptions
+      if (issue.fields.parent) {
+        parentDescriptions[issue.fields.parent.key] = issue.fields.parent.key; // In real implementation, get summary
+      }
+
+      // Track fix versions
+      if (issue.fields.fixVersions && issue.fields.fixVersions.length > 0) {
+        fixVersions.push(...issue.fields.fixVersions.map(v => v.name));
+      } else {
+        issuesWithoutFixVersion++;
+      }
+
+      // Build epic details
+      if (issue.fields.parent) {
+        const epicKey = issue.fields.parent.key;
+        const existingEpic = epicDetails.find(e => e.epicKey === epicKey);
+        
+        if (existingEpic) {
+          existingEpic.storyPoints += storyPoints;
+        } else {
+          epicDetails.push({
+            epicKey,
+            epicSummary: epicKey, // In real implementation, get summary
+            storyPoints,
+            status: statusName,
+            additionalComments: issue.fields.customfield_21675,
+            raid: issue.fields.customfield_30160,
+            piScope: issue.fields.customfield_20046,
+            piProgress: issue.fields.customfield_30195,
+            wsjf: issue.fields.customfield_42105
+          });
+        }
+      }
+    }
+
+    // 8. Return results (matching Python's sos function return structure)
     return {
       projectSprints,
       totalStoryPoints: Math.round(totalStoryPoints),
@@ -196,9 +285,14 @@ export async function getPiPlanningData(options: PiPlanningOptions): Promise<PiP
       inProgressStoryPoints: Math.round(inProgressStoryPoints),
       toDoStoryPoints: Math.round(toDoStoryPoints),
       piEpics: Array.from(piEpics),
+      epicDetails,
       releases,
       currentSprints: Array.from(currentSprints),
-      sprints: sprintDetails
+      sprints: sprintDetails,
+      storyPointsBreakdown,
+      parentDescriptions,
+      fixVersions: [...new Set(fixVersions)], // Remove duplicates
+      issuesWithoutFixVersion
     };
 
   } catch (error) {

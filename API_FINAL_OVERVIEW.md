@@ -7,20 +7,12 @@ This document summarizes the complete set of REST API endpoints implemented in t
 ## API Endpoints
 
 ### PI Planning
-- **GET `/api/v1/pi-planning/summary`** — Full PI Planning summary (releases, sprints, issues, story points, RAG, epic/sprint breakdowns, burn-up, RAID, WSJF, PI Scope, Progress)
-- **Granular Endpoints:** (all accept `project`, `boardId`, `piStartDate`, `piEndDate`)
-  - `/api/v1/pi-planning/releases`
-  - `/api/v1/pi-planning/sprints`
-  - `/api/v1/pi-planning/issues`
-  - `/api/v1/pi-planning/story-points`
-  - `/api/v1/pi-planning/rag-status`
-  - `/api/v1/pi-planning/epic-breakdown`
-  - `/api/v1/pi-planning/sprint-breakdown`
-  - `/api/v1/pi-planning/burnup`
-  - `/api/v1/pi-planning/raid`
-  - `/api/v1/pi-planning/wsjf`
-  - `/api/v1/pi-planning/pi-scope`
-  - `/api/v1/pi-planning/progress`
+- **GET `/api/v1/pi-planning`** — Complete PI Planning data including sprints, story points, epics, releases, and current sprint information
+  - **Parameters:** `projectName`, `boardId`, `piStartDate`, `piEndDate`, `sprintIncludeFilter` (optional), `sprintExcludeFilter` (optional)
+  - **Returns:** Project sprints, story points breakdown, PI epics, releases, current sprints, and sprint details
+- **GET `/api/v1/pi-planning/epic-breakdown`** — Epic breakdown with story points, status, and additional information
+- **GET `/api/v1/pi-planning/sprint-breakdown`** — Sprint breakdown with story points and status information
+- **GET `/api/v1/pi-planning/story-points`** — Detailed story points analysis with breakdown by status and epics
 
 ### Velocity & Chart Data
 - **GET `/api/v1/velocity/summary`** — Velocity, efficiency, spillover, and team size per sprint
@@ -34,6 +26,12 @@ This document summarizes the complete set of REST API endpoints implemented in t
 - **POST `/api/v1/confluence/update`** — Update a Confluence page with analytics data
 
 ### Jira Data
+- **GET `/api/v1/jira/boards`** — Unified boards endpoint with filtering by project key and board type
+- **GET `/api/v1/jira/boards/{boardId}`** — Get board details
+- **GET `/api/v1/jira/boards/{boardId}/configuration`** — Get board configuration (columns, statuses)
+- **GET `/api/v1/jira/boards/{boardId}/issues`** — Get issues for a board
+- **GET `/api/v1/jira/boards/{boardId}/backlog`** — Get backlog issues for a board
+- **GET `/api/v1/jira/boards/{boardId}/statistics`** — Get board statistics and metrics
 - **GET `/api/v1/jira/releases`** — List of releases for a Jira project
 - **GET `/api/v1/jira/sprints`** — List of sprints for a Jira board
 - **GET `/api/v1/jira/issues`** — List of issues for a Jira project

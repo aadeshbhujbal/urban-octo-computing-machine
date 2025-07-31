@@ -204,70 +204,14 @@ router.get('/epics', async (req, res) => {
   }
 });
 
-/**
- * @swagger
- * /api/v1/jira/project/{projectKey}/boards:
- *   get:
- *     summary: Get project boards
- *     description: Returns all boards associated with a Jira project key.
- *     tags:
- *       - Jira
- *     parameters:
- *       - in: path
- *         name: projectKey
- *         schema:
- *           type: string
- *         required: true
- *         description: Jira project key
- *     responses:
- *       200:
- *         description: Project boards
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
- *       400:
- *         description: Missing required path param
- *       500:
- *         description: Server error
- */
-router.get('/project/:projectKey/boards', async (req, res) => {
-  try {
-    const { projectKey } = req.params;
-    if (!projectKey) {
-      return res.status(400).json({ error: 'Missing required path param: projectKey' });
-    }
-    
-    // Get all boards and filter by project
-    const credentials = validateJiraCredentials();
-    const boardsResponse = await fetchWithProxy(`${credentials.url}/rest/agile/1.0/board`, {
-      auth: { username: credentials.user, password: credentials.token },
-    });
-    
-    if (!boardsResponse.ok) {
-      throw new Error(`Failed to fetch boards: ${boardsResponse.status}`);
-    }
-    
-    const boardsData = await boardsResponse.json() as { values: Array<{ id: number; name: string; location?: { projectKey: string } }> };
-    const projectBoards = boardsData.values.filter(board => 
-      board.location && board.location.projectKey === projectKey
-    );
-    
-    res.json(projectBoards);
-  } catch (err) {
-    console.error('Error in project boards endpoint:', err);
-    res.status(500).json({ error: (err as Error).message });
-  }
-});
+
 
 /**
  * @swagger
  * /api/v1/jira/boards:
  *   get:
  *     summary: Get all boards
- *     description: Returns all boards with optional filtering by project key and board type.
+ *     description: Returns all boards with optional filtering by project key and board type. Use this unified endpoint for all board operations.
  *     tags:
  *       - Jira
  *     parameters:
@@ -281,6 +225,11 @@ router.get('/project/:projectKey/boards', async (req, res) => {
  *         schema:
  *           type: string
  *         description: Filter boards by type (e.g., scrum, kanban)
+ *       - in: query
+ *         name: includeDetails
+ *         schema:
+ *           type: boolean
+ *         description: Include detailed board information (default: false)
  *     responses:
  *       200:
  *         description: Boards array
@@ -295,13 +244,25 @@ router.get('/project/:projectKey/boards', async (req, res) => {
  */
 router.get('/boards', async (req, res) => {
   try {
-    const { projectKey, boardType } = req.query;
-    const options: { projectKey?: string; boardType?: string } = {};
+    const { projectKey, boardType, includeDetails } = req.query;
+    const options: { projectKey?: string; boardType?: string; includeDetails?: boolean } = {};
     
     if (projectKey) options.projectKey = projectKey as string;
     if (boardType) options.boardType = boardType as string;
+    if (includeDetails) options.includeDetails = includeDetails === 'true';
+    
+    console.log(`[DEBUG] Fetching boards with options:`, options);
     
     const boards = await getAllBoards(options);
+    
+    console.log(`[DEBUG] Found ${boards.length} boards`);
+    if (boards.length === 0 && projectKey) {
+      console.log(`[DEBUG] No boards found for project: ${projectKey}. This might indicate:`);
+      console.log(`[DEBUG] 1. Project key is incorrect`);
+      console.log(`[DEBUG] 2. Project has no boards configured`);
+      console.log(`[DEBUG] 3. User doesn't have access to project boards`);
+    }
+    
     res.json(boards);
   } catch (err) {
     console.error('Error in boards endpoint:', err);
@@ -583,6 +544,171 @@ router.get('/boards/:boardId/statistics', async (req, res) => {
     res.json(boardStats);
   } catch (err) {
     console.error('Error in board statistics endpoint:', err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/v1/jira/boards/with-sprints:
+ *   get:
+ *     summary: Get boards with sprints
+ *     description: Returns boards with their associated sprints for a project. This is a unified endpoint that combines board and sprint data.
+ *     tags:
+ *       - Jira
+ *     parameters:
+ *       - in: query
+ *         name: projectKey
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Jira project key (e.g., FRN)
+ *       - in: query
+ *         name: state
+ *         schema:
+ *           type: string
+ *         description: Sprint state filter (active,closed,future)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Limit number of sprints per board
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *         description: Start date filter (YYYY-MM-DD)
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *         description: End date filter (YYYY-MM-DD)
+ *       - in: query
+ *         name: sprintIncludeFilter
+ *         schema:
+ *           type: string
+ *         description: Filter to include sprints by name
+ *       - in: query
+ *         name: sprintExcludeFilter
+ *         schema:
+ *           type: string
+ *         description: Filter to exclude sprints by name
+ *     responses:
+ *       200:
+ *         description: Boards with sprints
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 projectKey:
+ *                   type: string
+ *                 totalBoards:
+ *                   type: integer
+ *                 boards:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       400:
+ *         description: Missing required parameters
+ *       500:
+ *         description: Server error
+ */
+router.get('/boards/with-sprints', async (req, res) => {
+  try {
+    const { 
+      projectKey,
+      state = 'active,closed,future', 
+      limit, 
+      startDate, 
+      endDate, 
+      sprintIncludeFilter, 
+      sprintExcludeFilter 
+    } = req.query;
+    
+    if (!projectKey) {
+      return res.status(400).json({ error: 'Missing required query param: projectKey' });
+    }
+
+    console.log(`[DEBUG] Getting boards with sprints for project: ${projectKey}`);
+
+    // Get all boards for the project
+    const boards = await getAllBoards({ projectKey: projectKey as string });
+    
+    if (boards.length === 0) {
+      console.log(`[DEBUG] No boards found for project: ${projectKey}`);
+      return res.json({
+        projectKey,
+        totalBoards: 0,
+        boards: [],
+        message: `No boards found for project: ${projectKey}`
+      });
+    }
+
+    // Get sprints for each board
+    const boardsWithSprints = await Promise.all(
+      boards.map(async (board) => {
+        try {
+          console.log(`[DEBUG] Getting sprints for board ${board.id}`);
+          const sprints = await getSprintsFromJira(board.id.toString(), state as string, {
+            startDate: startDate as string,
+            endDate: endDate as string,
+            timezone: 'UTC',
+            sprintExcludeFilter: sprintExcludeFilter as string,
+            sprintIncludeFilter: sprintIncludeFilter as string,
+            originBoardId: true
+          });
+          
+          // Sort sprints by start date (most recent first)
+          const sortedSprints = sprints.sort((firstSprint, secondSprint) => {
+            const firstDate = firstSprint.startDate ? new Date(firstSprint.startDate).getTime() : 0;
+            const secondDate = secondSprint.startDate ? new Date(secondSprint.startDate).getTime() : 0;
+            return secondDate - firstDate;
+          });
+
+          // Apply limit if specified
+          const limitedSprints = limit ? sortedSprints.slice(0, parseInt(limit as string, 10)) : sortedSprints;
+
+          const sprintList = limitedSprints.map(sprint => ({
+            sprintId: sprint.id,
+            sprintName: sprint.name || '',
+            state: sprint.state || '',
+            startDate: sprint.startDate || '',
+            endDate: sprint.endDate || ''
+          }));
+
+          return {
+            boardId: board.id.toString(),
+            boardName: board.name,
+            boardType: board.type,
+            projectKey: board.location?.projectKey,
+            totalSprints: sprints.length,
+            returnedSprints: sprintList.length,
+            sprints: sprintList
+          };
+        } catch (error) {
+          console.error(`[DEBUG] Error getting sprints for board ${board.id}:`, error);
+          return {
+            boardId: board.id.toString(),
+            boardName: board.name,
+            boardType: board.type,
+            projectKey: board.location?.projectKey,
+            totalSprints: 0,
+            returnedSprints: 0,
+            sprints: [],
+            error: (error as Error).message
+          };
+        }
+      })
+    );
+
+    res.json({
+      projectKey,
+      totalBoards: boards.length,
+      boards: boardsWithSprints
+    });
+  } catch (err) {
+    console.error('Error in boards with sprints endpoint:', err);
     res.status(500).json({ error: (err as Error).message });
   }
 });

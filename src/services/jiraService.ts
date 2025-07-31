@@ -918,6 +918,7 @@ export async function getBoardDetails(boardId: string): Promise<{
 export async function getAllBoards(options?: {
   projectKey?: string;
   boardType?: string;
+  includeDetails?: boolean;
 }): Promise<Array<{
   id: number;
   name: string;
@@ -968,18 +969,50 @@ export async function getAllBoards(options?: {
     
     let filteredBoards = boardsData.values;
     
+    console.log(`[DEBUG] Total boards found: ${boardsData.values.length}`);
+    console.log(`[DEBUG] Available boards:`, boardsData.values.map(b => ({
+      id: b.id,
+      name: b.name,
+      type: b.type,
+      projectKey: b.location?.projectKey
+    })));
+    
     // Filter by project key if specified
     if (options?.projectKey) {
+      const beforeFilter = filteredBoards.length;
       filteredBoards = filteredBoards.filter(board => 
         board.location && board.location.projectKey === options.projectKey
       );
+      console.log(`[DEBUG] Filtered by projectKey '${options.projectKey}': ${beforeFilter} -> ${filteredBoards.length} boards`);
     }
     
     // Filter by board type if specified
     if (options?.boardType) {
+      const beforeFilter = filteredBoards.length;
       filteredBoards = filteredBoards.filter(board => 
         board.type === options.boardType
       );
+      console.log(`[DEBUG] Filtered by boardType '${options.boardType}': ${beforeFilter} -> ${filteredBoards.length} boards`);
+    }
+    
+    // Include detailed information if requested
+    if (options?.includeDetails) {
+      console.log(`[DEBUG] Fetching detailed information for ${filteredBoards.length} boards`);
+      const detailedBoards = await Promise.all(
+        filteredBoards.map(async (board) => {
+          try {
+            const details = await getBoardDetails(board.id.toString());
+            return {
+              ...board,
+              ...details
+            };
+          } catch (error) {
+            console.error(`[DEBUG] Failed to get details for board ${board.id}:`, error);
+            return board;
+          }
+        })
+      );
+      return detailedBoards;
     }
     
     return filteredBoards;
