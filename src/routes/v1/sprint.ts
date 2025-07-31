@@ -38,7 +38,7 @@ async function getBoardId(boardIdOrProjectKey: string): Promise<string> {
  *         schema:
  *           type: string
  *         required: false
- *         description: Sprint state filter (active,closed,future)
+ *         description: Sprint state filter - active,closed,future
  *       - in: query
  *         name: limit
  *         schema:
@@ -51,14 +51,14 @@ async function getBoardId(boardIdOrProjectKey: string): Promise<string> {
  *           type: string
  *           format: date
  *         required: false
- *         description: Start date filter (YYYY-MM-DD) - only sprints starting after this date
+ *         description: Start date filter YYYY-MM-DD - only sprints starting after this date
  *       - in: query
  *         name: endDate
  *         schema:
  *           type: string
  *           format: date
  *         required: false
- *         description: End date filter (YYYY-MM-DD) - only sprints ending before this date
+ *         description: End date filter YYYY-MM-DD - only sprints ending before this date
  *       - in: query
  *         name: sprintIncludeFilter
  *         schema:
@@ -238,7 +238,7 @@ router.get('/project/:projectKey/boards', async (req, res) => {
  *         schema:
  *           type: string
  *         required: false
- *         description: Sprint state filter (active,closed,future)
+ *         description: Sprint state filter - active,closed,future
  *       - in: query
  *         name: limit
  *         schema:
@@ -251,14 +251,14 @@ router.get('/project/:projectKey/boards', async (req, res) => {
  *           type: string
  *           format: date
  *         required: false
- *         description: Start date filter (YYYY-MM-DD) - only sprints starting after this date
+ *         description: Start date filter YYYY-MM-DD - only sprints starting after this date
  *       - in: query
  *         name: endDate
  *         schema:
  *           type: string
  *           format: date
  *         required: false
- *         description: End date filter (YYYY-MM-DD) - only sprints ending before this date
+ *         description: End date filter YYYY-MM-DD - only sprints ending before this date
  *       - in: query
  *         name: sprintIncludeFilter
  *         schema:
@@ -484,21 +484,21 @@ router.get('/:sprintId/details', async (req, res) => {
  *         schema:
  *           type: string
  *         required: false
- *         description: Sprint state filter (active,closed,future)
+ *         description: Sprint state filter - active,closed,future
  *       - in: query
  *         name: startDate
  *         schema:
  *           type: string
  *           format: date
  *         required: false
- *         description: Start date filter (YYYY-MM-DD)
+ *         description: Start date filter YYYY-MM-DD
  *       - in: query
  *         name: endDate
  *         schema:
  *           type: string
  *           format: date
  *         required: false
- *         description: End date filter (YYYY-MM-DD)
+ *         description: End date filter YYYY-MM-DD
  *     responses:
  *       200:
  *         description: Sprint summary data
@@ -586,7 +586,7 @@ router.get('/summary', async (req, res) => {
  *         schema:
  *           type: string
  *         required: false
- *         description: Sprint state filter (active,closed,future)
+ *         description: Sprint state filter - active,closed,future
  *       - in: query
  *         name: limit
  *         schema:
@@ -599,14 +599,14 @@ router.get('/summary', async (req, res) => {
  *           type: string
  *           format: date
  *         required: false
- *         description: Start date filter (YYYY-MM-DD) - only sprints starting after this date
+ *         description: Start date filter YYYY-MM-DD - only sprints starting after this date
  *       - in: query
  *         name: endDate
  *         schema:
  *           type: string
  *           format: date
  *         required: false
- *         description: End date filter (YYYY-MM-DD) - only sprints ending before this date
+ *         description: End date filter YYYY-MM-DD - only sprints ending before this date
  *       - in: query
  *         name: sprintIncludeFilter
  *         schema:
@@ -751,7 +751,7 @@ router.get('/list', async (req, res) => {
  *         schema:
  *           type: string
  *         required: false
- *         description: Timezone for date comparisons (default: UTC)
+ *         description: Timezone for date comparisons - default UTC
  *       - in: query
  *         name: sprintExcludeFilter
  *         schema:
@@ -769,7 +769,7 @@ router.get('/list', async (req, res) => {
  *         schema:
  *           type: boolean
  *         required: false
- *         description: Filter by origin board ID (default: true)
+ *         description: Filter by origin board ID - default true
  *     responses:
  *       200:
  *         description: List of sprint IDs sorted chronologically
