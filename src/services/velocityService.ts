@@ -98,6 +98,46 @@ export async function getVelocitySummary(options: VelocitySummaryOptions): Promi
 } 
 
 /**
+ * Get sprint team members with details (Python equivalent)
+ * Python: def get_sprint_team_members_details(jira_url, sprint_id, username, api_token):
+ */
+export async function getSprintTeamMembersDetails(sprintId: number): Promise<{
+  count: number;
+  members: Array<{ name: string; email: string; accountId: string }>;
+}> {
+  try {
+    const issues = await getSprintIssuesWithAssignee(sprintId);
+    const memberMap = new Map<string, { name: string; email: string; accountId: string }>();
+    
+    for (const issue of issues || []) {
+      const assignee = issue.fields.assignee;
+      if (assignee && assignee.accountId) {
+        if (!memberMap.has(assignee.accountId)) {
+          memberMap.set(assignee.accountId, {
+            name: assignee.displayName || 'Unknown',
+            email: '', // Jira API doesn't provide email in assignee field
+            accountId: assignee.accountId
+          });
+        }
+      }
+    }
+    
+    const members = Array.from(memberMap.values());
+    
+    return {
+      count: members.length,
+      members
+    };
+  } catch (error) {
+    console.error(`Error getting team member details for sprint ${sprintId}:`, error);
+    return {
+      count: 0,
+      members: []
+    };
+  }
+}
+
+/**
  * Get sprint team members count (Python equivalent)
  * Python: def get_sprint_team_members(jira_url, sprint_id, username, api_token):
  */

@@ -11,7 +11,7 @@ export const updateConfluencePage = async (req: Request, res: Response): Promise
   }
   try {
     const response = await fetchWithProxy(
-      `https://your-domain.atlassian.net/wiki/rest/api/content/${pageId}`,
+      `${process.env.CONFLUENCE_URL}/wiki/rest/api/content/${pageId}`,
       {
         method: 'PUT',
         headers: {

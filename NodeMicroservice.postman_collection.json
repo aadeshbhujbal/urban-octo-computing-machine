@@ -11,12 +11,315 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:3000/api/v1/health",
+          "raw": "http://localhost:3000/api/health",
           "protocol": "http",
           "host": ["localhost"],
           "port": "3000",
-          "path": ["api", "v1", "health"]
+          "path": ["api", "health"]
         }
+      }
+    },
+
+    {
+      "name": "Current Summary",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/current/summary?project={{project}}&boardId={{boardId}}&piStartDate={{piStartDate}}&piEndDate={{piEndDate}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "current", "summary"],
+          "query": [
+            {
+              "key": "project",
+              "value": "{{project}}",
+              "description": "Jira project key"
+            },
+            {
+              "key": "boardId",
+              "value": "{{boardId}}",
+              "description": "Jira board ID (e.g., 59059) or project key (e.g., FRN)"
+            },
+            {
+              "key": "piStartDate",
+              "value": "{{piStartDate}}",
+              "description": "PI start date (YYYY-MM-DD) - optional"
+            },
+            {
+              "key": "piEndDate",
+              "value": "{{piEndDate}}",
+              "description": "PI end date (YYYY-MM-DD) - optional"
+            }
+          ]
+        },
+        "description": "Returns unified current summary including Jira sprint, release, PI Planning, velocity, and sprint objectives."
+      }
+    },
+    {
+      "name": "Sprint - Get Sprint Details",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/sprint/{{sprintId}}?projectKey={{projectKey}}&includeAnalytics=true&includeObjectives=true",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "sprint", "{{sprintId}}"],
+          "query": [
+            {
+              "key": "projectKey",
+              "value": "{{projectKey}}",
+              "description": "Jira project key (e.g., FRN) - use this OR boardId, not both"
+            },
+            {
+              "key": "boardId",
+              "value": "{{boardId}}",
+              "description": "Jira board ID (e.g., 59059) - use this OR projectKey, not both"
+            },
+            {
+              "key": "includeAnalytics",
+              "value": "true",
+              "description": "Include sprint analytics and metrics"
+            },
+            {
+              "key": "includeObjectives",
+              "value": "true",
+              "description": "Include sprint objectives and story points"
+            }
+          ]
+        },
+        "description": "Returns comprehensive sprint information including basic details, analytics, and objectives."
+      }
+    },
+    {
+      "name": "Sprint - Get Sprint List",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/sprint/list?projectKey={{projectKey}}&state=active,closed,future&limit=10&includeAnalytics=false",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "sprint", "list"],
+          "query": [
+            {
+              "key": "projectKey",
+              "value": "{{projectKey}}",
+              "description": "Jira project key (e.g., FRN) - use this OR boardId, not both"
+            },
+            {
+              "key": "boardId",
+              "value": "{{boardId}}",
+              "description": "Jira board ID (e.g., 59059) - use this OR projectKey, not both"
+            },
+            {
+              "key": "state",
+              "value": "active,closed,future",
+              "description": "Sprint state filter"
+            },
+            {
+              "key": "limit",
+              "value": "10",
+              "description": "Maximum number of sprints to return"
+            },
+            {
+              "key": "startDate",
+              "value": "{{startDate}}",
+              "description": "Start date filter YYYY-MM-DD"
+            },
+            {
+              "key": "endDate",
+              "value": "{{endDate}}",
+              "description": "End date filter YYYY-MM-DD"
+            },
+            {
+              "key": "sortBy",
+              "value": "startDate",
+              "description": "Sort by field (id, name, startDate, endDate)"
+            },
+            {
+              "key": "sortOrder",
+              "value": "desc",
+              "description": "Sort order (asc, desc)"
+            },
+            {
+              "key": "includeAnalytics",
+              "value": "false",
+              "description": "Include analytics for each sprint"
+            }
+          ]
+        },
+        "description": "Returns a list of sprints with filtering, sorting, and optional analytics."
+      }
+    },
+    {
+      "name": "Sprint - Get Sprint Summary",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/sprint/summary?projectKey={{projectKey}}&state=active,closed,future&limit=10",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "sprint", "summary"],
+          "query": [
+            {
+              "key": "projectKey",
+              "value": "{{projectKey}}",
+              "description": "Jira project key (e.g., FRN) - use this OR boardId, not both"
+            },
+            {
+              "key": "boardId",
+              "value": "{{boardId}}",
+              "description": "Jira board ID (e.g., 59059) - use this OR projectKey, not both"
+            },
+            {
+              "key": "state",
+              "value": "active,closed,future",
+              "description": "Sprint state filter"
+            },
+            {
+              "key": "limit",
+              "value": "10",
+              "description": "Maximum number of sprints to return"
+            },
+            {
+              "key": "startDate",
+              "value": "{{startDate}}",
+              "description": "Start date filter YYYY-MM-DD"
+            },
+            {
+              "key": "endDate",
+              "value": "{{endDate}}",
+              "description": "End date filter YYYY-MM-DD"
+            }
+          ]
+        },
+        "description": "Returns sprint summary with story points, team members, and efficiency metrics."
+      }
+    },
+    {
+      "name": "Velocity - Analytics",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/velocity/analytics?projectKey={{projectKey}}&numSprints=6&includeChartData=true&includeGranularMetrics=true&includeTrends=true&includePredictions=false",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "velocity", "analytics"],
+          "query": [
+            {
+              "key": "projectKey",
+              "value": "{{projectKey}}",
+              "description": "Jira project key (e.g., FRN) - use this OR boardId, not both"
+            },
+            {
+              "key": "boardId",
+              "value": "{{boardId}}",
+              "description": "Jira board ID (e.g., 59059) - use this OR projectKey, not both"
+            },
+            {
+              "key": "numSprints",
+              "value": "6",
+              "description": "Number of sprints to analyze"
+            },
+            {
+              "key": "year",
+              "value": "{{year}}",
+              "description": "Filter sprints by year (e.g., 2024)"
+            },
+            {
+              "key": "sprintPrefix",
+              "value": "{{sprintPrefix}}",
+              "description": "Filter sprints by name prefix"
+            },
+            {
+              "key": "includeChartData",
+              "value": "true",
+              "description": "Include chart data format"
+            },
+            {
+              "key": "includeGranularMetrics",
+              "value": "true",
+              "description": "Include team members and added story points for each sprint"
+            },
+            {
+              "key": "includeTrends",
+              "value": "true",
+              "description": "Include trend analysis and performance insights"
+            },
+            {
+              "key": "includePredictions",
+              "value": "false",
+              "description": "Include velocity predictions and forecasting"
+            }
+          ]
+        },
+        "description": "Returns comprehensive velocity analytics including summary data, chart data, granular metrics, trends analysis, and performance insights."
+      }
+    },
+    {
+      "name": "Velocity - Summary",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/velocity/summary?projectKey={{projectKey}}&numSprints=6&year={{year}}&sprintPrefix={{sprintPrefix}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "velocity", "summary"],
+          "query": [
+            {
+              "key": "projectKey",
+              "value": "{{projectKey}}",
+              "description": "Jira project key (e.g., FRN) - use this OR boardId, not both"
+            },
+            {
+              "key": "boardId",
+              "value": "{{boardId}}",
+              "description": "Jira board ID (e.g., 59059) - use this OR projectKey, not both"
+            },
+            {
+              "key": "numSprints",
+              "value": "6",
+              "description": "Number of sprints to analyze (default 6)"
+            },
+            {
+              "key": "year",
+              "value": "{{year}}",
+              "description": "Filter sprints by year (e.g., 2024)"
+            },
+            {
+              "key": "sprintPrefix",
+              "value": "{{sprintPrefix}}",
+              "description": "Filter sprints by name prefix"
+            }
+          ]
+        },
+        "description": "Returns velocity, efficiency, spillover, and team size metrics for a Jira board's sprints."
+      }
+    },
+    {
+      "name": "Velocity - Sprint Details",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/velocity/sprint/{{sprintId}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "velocity", "sprint", "{{sprintId}}"]
+        },
+        "description": "Returns detailed velocity metrics for a specific sprint including team members, added story points, and performance analysis."
       }
     },
     {
@@ -39,7 +342,7 @@
             {
               "key": "boardId",
               "value": "{{boardId}}",
-              "description": "Jira board ID"
+              "description": "Jira board ID (e.g., 59059) or project key (e.g., FRN)"
             },
             {
               "key": "piStartDate",
@@ -121,43 +424,6 @@
       }
     },
     {
-      "name": "Velocity Summary",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "http://localhost:3000/api/v1/velocity/summary?boardId={{boardId}}&numSprints={{numSprints}}&year={{year}}&sprintPrefix={{sprintPrefix}}",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "3000",
-          "path": ["api", "v1", "velocity", "summary"],
-          "query": [
-            {
-              "key": "boardId",
-              "value": "{{boardId}}",
-              "description": "Jira board ID"
-            },
-            {
-              "key": "numSprints",
-              "value": "{{numSprints}}",
-              "description": "Number of sprints to analyze (default 6)"
-            },
-            {
-              "key": "year",
-              "value": "{{year}}",
-              "description": "Filter sprints by year (e.g., 2024)"
-            },
-            {
-              "key": "sprintPrefix",
-              "value": "{{sprintPrefix}}",
-              "description": "Filter sprints by name prefix"
-            }
-          ]
-        },
-        "description": "Returns velocity, efficiency, spillover, and team size metrics for a Jira board's sprints."
-      }
-    },
-    {
       "name": "Orchestration Run",
       "request": {
         "method": "GET",
@@ -168,7 +434,8 @@
           "host": ["localhost"],
           "port": "3000",
           "path": ["api", "v1", "orchestration", "run"]
-        }
+        },
+        "description": "Runs config-driven analytics orchestration for all projects in the config CSV."
       }
     },
     {
@@ -185,7 +452,8 @@
           "query": [
             { "key": "project", "value": "{{project}}" }
           ]
-        }
+        },
+        "description": "Returns all releases/versions for a Jira project."
       }
     },
     {
@@ -202,7 +470,8 @@
           "query": [
             { "key": "boardId", "value": "{{boardId}}" }
           ]
-        }
+        },
+        "description": "Returns all sprints for a Jira board."
       }
     },
     {
@@ -219,7 +488,8 @@
           "query": [
             { "key": "jql", "value": "{{jql}}" }
           ]
-        }
+        },
+        "description": "Returns issues based on JQL query."
       }
     },
     {
@@ -236,7 +506,79 @@
           "query": [
             { "key": "boardId", "value": "{{boardId}}" }
           ]
-        }
+        },
+        "description": "Returns all epics for a Jira board."
+      }
+    },
+    {
+      "name": "Jira - Get Project Boards",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/jira/project/{{projectKey}}/boards",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "jira", "project", "{{projectKey}}", "boards"]
+        },
+        "description": "Returns all boards associated with a Jira project key."
+      }
+    },
+    {
+      "name": "Epic - Get Epic Details",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/epic/{{epicKey}}?boardId={{boardId}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "epic", "{{epicKey}}"],
+          "query": [
+            { "key": "boardId", "value": "{{boardId}}" }
+          ]
+        },
+        "description": "Returns detailed information about a specific epic."
+      }
+    },
+    {
+      "name": "Epic - Get Epic List",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/epic/list?boardId={{boardId}}&limit=10",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "epic", "list"],
+          "query": [
+            { "key": "boardId", "value": "{{boardId}}" },
+            { "key": "limit", "value": "10" }
+          ]
+        },
+        "description": "Returns a list of epics for a Jira board."
+      }
+    },
+    {
+      "name": "Milestone - Get Milestones",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/v1/milestone?project={{project}}&boardId={{boardId}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "v1", "milestone"],
+          "query": [
+            { "key": "project", "value": "{{project}}" },
+            { "key": "boardId", "value": "{{boardId}}" }
+          ]
+        },
+        "description": "Returns milestones (Jira releases) with sprint objectives and tracking information."
       }
     },
     {
@@ -256,7 +598,8 @@
             { "key": "piStartDate", "value": "{{piStartDate}}" },
             { "key": "piEndDate", "value": "{{piEndDate}}" }
           ]
-        }
+        },
+        "description": "Returns releases within the PI date range."
       }
     },
     {
@@ -276,7 +619,8 @@
             { "key": "piStartDate", "value": "{{piStartDate}}" },
             { "key": "piEndDate", "value": "{{piEndDate}}" }
           ]
-        }
+        },
+        "description": "Returns sprints within the PI date range."
       }
     },
     {
@@ -296,7 +640,8 @@
             { "key": "piStartDate", "value": "{{piStartDate}}" },
             { "key": "piEndDate", "value": "{{piEndDate}}" }
           ]
-        }
+        },
+        "description": "Returns issues within the PI date range."
       }
     },
     {
@@ -316,7 +661,8 @@
             { "key": "piStartDate", "value": "{{piStartDate}}" },
             { "key": "piEndDate", "value": "{{piEndDate}}" }
           ]
-        }
+        },
+        "description": "Returns story point breakdown within the PI date range."
       }
     },
     {
@@ -336,7 +682,8 @@
             { "key": "piStartDate", "value": "{{piStartDate}}" },
             { "key": "piEndDate", "value": "{{piEndDate}}" }
           ]
-        }
+        },
+        "description": "Returns RAG status for PI Planning."
       }
     },
     {
@@ -356,7 +703,8 @@
             { "key": "piStartDate", "value": "{{piStartDate}}" },
             { "key": "piEndDate", "value": "{{piEndDate}}" }
           ]
-        }
+        },
+        "description": "Returns epic breakdown for PI Planning."
       }
     },
     {
@@ -376,7 +724,8 @@
             { "key": "piStartDate", "value": "{{piStartDate}}" },
             { "key": "piEndDate", "value": "{{piEndDate}}" }
           ]
-        }
+        },
+        "description": "Returns sprint breakdown for PI Planning."
       }
     },
     {
@@ -396,7 +745,8 @@
             { "key": "piStartDate", "value": "{{piStartDate}}" },
             { "key": "piEndDate", "value": "{{piEndDate}}" }
           ]
-        }
+        },
+        "description": "Returns burnup chart data for PI Planning."
       }
     },
     {
@@ -416,7 +766,8 @@
             { "key": "piStartDate", "value": "{{piStartDate}}" },
             { "key": "piEndDate", "value": "{{piEndDate}}" }
           ]
-        }
+        },
+        "description": "Returns RAID analysis for PI Planning."
       }
     },
     {
@@ -436,7 +787,8 @@
             { "key": "piStartDate", "value": "{{piStartDate}}" },
             { "key": "piEndDate", "value": "{{piEndDate}}" }
           ]
-        }
+        },
+        "description": "Returns WSJF analysis for PI Planning."
       }
     },
     {
@@ -456,7 +808,8 @@
             { "key": "piStartDate", "value": "{{piStartDate}}" },
             { "key": "piEndDate", "value": "{{piEndDate}}" }
           ]
-        }
+        },
+        "description": "Returns PI scope analysis."
       }
     },
     {
@@ -476,7 +829,8 @@
           "host": ["localhost"],
           "port": "3000",
           "path": ["api", "v1", "confluence", "update"]
-        }
+        },
+        "description": "Updates a Confluence page with new content."
       }
     },
     {
@@ -485,18 +839,28 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:3000/api/v1/charts/velocity-data?boardId={{boardId}}&numSprints={{numSprints}}&year={{year}}&sprintPrefix={{sprintPrefix}}",
+          "raw": "http://localhost:3000/api/v1/velocity/chart-data?projectKey={{projectKey}}&numSprints=6&year={{year}}&sprintPrefix={{sprintPrefix}}",
           "protocol": "http",
           "host": ["localhost"],
           "port": "3000",
-          "path": ["api", "v1", "charts", "velocity-data"],
+          "path": ["api", "v1", "velocity", "chart-data"],
           "query": [
-            { "key": "boardId", "value": "{{boardId}}" },
-            { "key": "numSprints", "value": "{{numSprints}}" },
+            {
+              "key": "projectKey",
+              "value": "{{projectKey}}",
+              "description": "Jira project key (e.g., FRN) - use this OR boardId, not both"
+            },
+            {
+              "key": "boardId",
+              "value": "{{boardId}}",
+              "description": "Jira board ID (e.g., 59059) - use this OR projectKey, not both"
+            },
+            { "key": "numSprints", "value": "6" },
             { "key": "year", "value": "{{year}}" },
             { "key": "sprintPrefix", "value": "{{sprintPrefix}}" }
           ]
-        }
+        },
+        "description": "Returns velocity chart data for visualization."
       }
     }
   ],
@@ -509,16 +873,19 @@
     { "key": "GITLAB_TOKEN", "value": "dev_gitlab_token" },
     { "key": "GITLAB_HOST", "value": "https://gitlab.dev.example.com" },
     { "key": "CONFLUENCE_URL", "value": "https://dev-confluence.example.com" },
-    { "key": "project", "value": "" },
-    { "key": "boardId", "value": "" },
-    { "key": "piStartDate", "value": "" },
-    { "key": "piEndDate", "value": "" },
-    { "key": "groupId", "value": "" },
-    { "key": "startDate", "value": "" },
-    { "key": "endDate", "value": "" },
-    { "key": "numSprints", "value": "" },
-    { "key": "year", "value": "" },
-    { "key": "sprintPrefix", "value": "" },
-    { "key": "jql", "value": "" }
+    { "key": "project", "value": "FRN", "description": "Jira project key" },
+    { "key": "projectKey", "value": "FRN", "description": "Jira project key (e.g., FRN)" },
+    { "key": "boardId", "value": "59059", "description": "Jira board ID (e.g., 59059)" },
+    { "key": "piStartDate", "value": "2024-01-01", "description": "PI start date (YYYY-MM-DD)" },
+    { "key": "piEndDate", "value": "2024-03-31", "description": "PI end date (YYYY-MM-DD)" },
+    { "key": "groupId", "value": "123", "description": "GitLab group ID or path" },
+    { "key": "startDate", "value": "2024-01-01", "description": "Start date (YYYY-MM-DD)" },
+    { "key": "endDate", "value": "2024-01-31", "description": "End date (YYYY-MM-DD)" },
+    { "key": "numSprints", "value": "6", "description": "Number of sprints to analyze" },
+    { "key": "year", "value": "2024", "description": "Year filter" },
+    { "key": "sprintPrefix", "value": "Sprint", "description": "Sprint name prefix filter" },
+    { "key": "sprintId", "value": "170427", "description": "Sprint ID" },
+    { "key": "epicKey", "value": "FRN-123", "description": "Epic key" },
+    { "key": "jql", "value": "project = FRN AND sprint in openSprints()", "description": "JQL query" }
   ]
 } 

@@ -34,11 +34,17 @@ async function getBoardId(boardIdOrProjectKey: string): Promise<string> {
  *         required: true
  *         description: Sprint ID
  *       - in: query
- *         name: projectKeyOrBoardId
+ *         name: projectKey
  *         schema:
  *           type: string
  *         required: false
- *         description: Jira project key or board ID to help locate the sprint
+ *         description: Jira project key (e.g., FRN) - use this OR boardId, not both
+ *       - in: query
+ *         name: boardId
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Jira board ID (e.g., 59059) - use this OR projectKey, not both
  *       - in: query
  *         name: includeAnalytics
  *         schema:
@@ -110,7 +116,7 @@ async function getBoardId(boardIdOrProjectKey: string): Promise<string> {
  *                           description:
  *                             type: string
  *       400:
- *         description: Missing sprint ID
+ *         description: Missing sprint ID or invalid parameters
  *       404:
  *         description: Sprint not found
  *       500:
@@ -119,20 +125,51 @@ async function getBoardId(boardIdOrProjectKey: string): Promise<string> {
 router.get('/:sprintId', async (req, res) => {
   try {
     const { sprintId } = req.params;
-    const { projectKeyOrBoardId, includeAnalytics = 'true', includeObjectives = 'true' } = req.query;
+    const { projectKey, boardId, includeAnalytics = 'true', includeObjectives = 'true' } = req.query;
     
     if (!sprintId) {
       return res.status(400).json({ error: 'Missing sprint ID' });
     }
 
-    console.log(`[DEBUG] Getting comprehensive sprint info for sprint: ${sprintId}`);
+    // Validate that either projectKey or boardId is provided, but not both
+    if (!projectKey && !boardId) {
+      return res.status(400).json({ 
+        error: 'Either projectKey or boardId must be provided',
+        example: 'Use ?projectKey=FRN or ?boardId=59059'
+      });
+    }
+
+    if (projectKey && boardId) {
+      return res.status(400).json({ 
+        error: 'Provide either projectKey OR boardId, not both',
+        example: 'Use ?projectKey=FRN or ?boardId=59059'
+      });
+    }
+
+    console.log(`[DEBUG] Getting comprehensive sprint info for sprint: ${sprintId} with ${projectKey ? 'projectKey: ' + projectKey : 'boardId: ' + boardId}`);
 
     const sprintIdNum = parseInt(sprintId, 10);
     const includeAnalyticsBool = includeAnalytics === 'true';
     const includeObjectivesBool = includeObjectives === 'true';
 
+    // Determine the board ID to use
+    let actualBoardId: string;
+    if (projectKey) {
+      try {
+        actualBoardId = await getBoardIdFromProjectKey(projectKey as string);
+        console.log(`[DEBUG] Converted project key ${projectKey} to board ID: ${actualBoardId}`);
+      } catch (error) {
+        return res.status(404).json({ 
+          error: `No board found for project key: ${projectKey}`,
+          message: 'Please check if the project has any boards configured in Jira'
+        });
+      }
+    } else {
+      actualBoardId = boardId as string;
+    }
+
     // Get basic sprint details
-    const sprintDetails = await getSprintDetails(sprintIdNum, projectKeyOrBoardId as string);
+    const sprintDetails = await getSprintDetails(sprintIdNum, actualBoardId);
     
     if (!sprintDetails) {
       return res.status(404).json({ error: 'Sprint not found' });
@@ -180,7 +217,7 @@ router.get('/:sprintId', async (req, res) => {
     if (includeAnalyticsBool) {
       try {
         const analytics = await getSprintSummary({
-          boardId: projectKeyOrBoardId as string,
+          boardId: actualBoardId,
           sprintIds: [sprintIdNum]
         });
         
@@ -204,8 +241,7 @@ router.get('/:sprintId', async (req, res) => {
     // Include objectives if requested
     if (includeObjectivesBool) {
       try {
-        const boardId = await getBoardId(projectKeyOrBoardId as string);
-        const objectives = await getCurrentSprintObjectives(boardId);
+        const objectives = await getCurrentSprintObjectives(actualBoardId);
         result.objectives = objectives;
       } catch (objectivesError) {
         console.error('Error getting sprint objectives:', objectivesError);
@@ -214,9 +250,9 @@ router.get('/:sprintId', async (req, res) => {
     }
 
     res.json(result);
-  } catch (err) {
-    console.error('Error in comprehensive sprint endpoint:', err);
-    res.status(500).json({ error: (err as Error).message });
+  } catch (error) {
+    console.error('Error in sprint details endpoint:', error);
+    res.status(500).json({ error: (error as Error).message });
   }
 });
 
@@ -230,11 +266,17 @@ router.get('/:sprintId', async (req, res) => {
  *       - Sprint
  *     parameters:
  *       - in: query
- *         name: projectKeyOrBoardId
+ *         name: projectKey
  *         schema:
  *           type: string
- *         required: true
- *         description: Jira project key (e.g., FRN) or board ID (e.g., 59059)
+ *         required: false
+ *         description: Jira project key (e.g., FRN) - use this OR boardId, not both
+ *       - in: query
+ *         name: boardId
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Jira board ID (e.g., 59059) - use this OR projectKey, not both
  *       - in: query
  *         name: state
  *         schema:
@@ -344,7 +386,8 @@ router.get('/:sprintId', async (req, res) => {
 router.get('/list', async (req, res) => {
   try {
     const { 
-      projectKeyOrBoardId, 
+      projectKey,
+      boardId,
       state = 'active,closed,future', 
       limit, 
       startDate, 
@@ -356,13 +399,38 @@ router.get('/list', async (req, res) => {
       includeAnalytics = 'false'
     } = req.query;
     
-    if (!projectKeyOrBoardId) {
-      return res.status(400).json({ error: 'Missing required parameter: projectKeyOrBoardId' });
+    // Validate that either projectKey or boardId is provided, but not both
+    if (!projectKey && !boardId) {
+      return res.status(400).json({ 
+        error: 'Either projectKey or boardId must be provided',
+        example: 'Use ?projectKey=FRN or ?boardId=59059'
+      });
     }
 
-    console.log(`[DEBUG] Getting sprints for: ${projectKeyOrBoardId}`);
+    if (projectKey && boardId) {
+      return res.status(400).json({ 
+        error: 'Provide either projectKey OR boardId, not both',
+        example: 'Use ?projectKey=FRN or ?boardId=59059'
+      });
+    }
 
-    const boardIdToUse = await getBoardId(projectKeyOrBoardId as string);
+    console.log(`[DEBUG] Getting sprints for: ${projectKey ? 'projectKey: ' + projectKey : 'boardId: ' + boardId}`);
+
+    // Determine the board ID to use
+    let boardIdToUse: string;
+    if (projectKey) {
+      try {
+        boardIdToUse = await getBoardIdFromProjectKey(projectKey as string);
+        console.log(`[DEBUG] Converted project key ${projectKey} to board ID: ${boardIdToUse}`);
+      } catch (error) {
+        return res.status(404).json({ 
+          error: `No board found for project key: ${projectKey}`,
+          message: 'Please check if the project has any boards configured in Jira'
+        });
+      }
+    } else {
+      boardIdToUse = boardId as string;
+    }
     const includeAnalyticsBool = includeAnalytics === 'true';
 
     // Get sprints with filtering
@@ -392,9 +460,10 @@ router.get('/list', async (req, res) => {
       
       if (fallbackSprints.length === 0) {
         return res.status(404).json({ 
-          error: `No sprints found for ${projectKeyOrBoardId} (board ID: ${boardIdToUse})`,
+          error: `No sprints found for ${projectKey || boardId} (board ID: ${boardIdToUse})`,
           boardId: boardIdToUse,
-          projectKeyOrBoardId: projectKeyOrBoardId,
+          projectKey: projectKey || null,
+          inputBoardId: boardId || null,
           message: 'Try checking if the project has boards configured in Jira'
         });
       }

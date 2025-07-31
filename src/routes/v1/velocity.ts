@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { getVelocitySummary, getSprintTeamMembers, getAddedStoryPoints, getVelocityChartData } from '../../services/velocityService';
+import { getVelocitySummary, getSprintTeamMembers, getSprintTeamMembersDetails, getAddedStoryPoints, getVelocityChartData } from '../../services/velocityService';
+import { getBoardIdFromProjectKey } from '../../services/jiraService';
 import { createServiceError, ServiceError } from '../../types/errors';
 
 const router = Router();
@@ -14,11 +15,17 @@ const router = Router();
  *       - Velocity
  *     parameters:
  *       - in: query
- *         name: projectKeyOrBoardId
+ *         name: projectKey
  *         schema:
  *           type: string
- *         required: true
- *         description: Jira project key (e.g., FRN) or board ID (e.g., 59059)
+ *         required: false
+ *         description: Jira project key (e.g., FRN) - use this OR boardId, not both
+ *       - in: query
+ *         name: boardId
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Jira board ID (e.g., 59059) - use this OR projectKey, not both
  *       - in: query
  *         name: numSprints
  *         schema:
@@ -348,7 +355,8 @@ const router = Router();
 router.get('/analytics', async (req, res) => {
   try {
     const { 
-      projectKeyOrBoardId, 
+      projectKey,
+      boardId,
       numSprints, 
       year, 
       sprintPrefix, 
@@ -358,8 +366,19 @@ router.get('/analytics', async (req, res) => {
       includePredictions = 'false'
     } = req.query;
     
-    if (!projectKeyOrBoardId) {
-      return res.status(400).json({ error: 'Missing required query param: projectKeyOrBoardId' });
+    // Validate that either projectKey or boardId is provided, but not both
+    if (!projectKey && !boardId) {
+      return res.status(400).json({ 
+        error: 'Either projectKey or boardId must be provided',
+        example: 'Use ?projectKey=FRN or ?boardId=59059'
+      });
+    }
+
+    if (projectKey && boardId) {
+      return res.status(400).json({ 
+        error: 'Provide either projectKey OR boardId, not both',
+        example: 'Use ?projectKey=FRN or ?boardId=59059'
+      });
     }
 
     const includeChartDataBool = includeChartData === 'true';
@@ -367,9 +386,25 @@ router.get('/analytics', async (req, res) => {
     const includeTrendsBool = includeTrends === 'true';
     const includePredictionsBool = includePredictions === 'true';
 
+    // Determine the board ID to use
+    let actualBoardId: string;
+    if (projectKey) {
+      try {
+        actualBoardId = await getBoardIdFromProjectKey(projectKey as string);
+        console.log(`[DEBUG] Converted project key ${projectKey} to board ID: ${actualBoardId}`);
+      } catch (error) {
+        return res.status(404).json({ 
+          error: `No board found for project key: ${projectKey}`,
+          message: 'Please check if the project has any boards configured in Jira'
+        });
+      }
+    } else {
+      actualBoardId = boardId as string;
+    }
+
     // Get velocity summary
     const summaryResult = await getVelocitySummary({
-      boardId: projectKeyOrBoardId as string,
+      boardId: actualBoardId,
       numSprints: numSprints ? parseInt(numSprints as string, 10) : undefined,
       year: year ? parseInt(year as string, 10) : undefined,
       sprintPrefix: sprintPrefix as string | undefined,
@@ -442,7 +477,7 @@ router.get('/analytics', async (req, res) => {
         velocity: number[];
       } | null;
       granularMetrics?: {
-        teamMembers: Record<string, { count: number; members: string[] }>;
+        teamMembers: Record<string, { count: number; members: Array<{ name: string; email: string; accountId: string }> }>;
         addedStoryPoints: Record<string, { total: number; issues: Array<{ issueKey: string; storyPoints: number; addedDate: string; issueType: string; priority: string }> }>;
       } | null;
       trends?: {
@@ -509,16 +544,16 @@ router.get('/analytics', async (req, res) => {
     // Include granular metrics if requested
     if (includeGranularMetricsBool) {
       try {
-        const teamMembersData: Record<string, { count: number; members: string[] }> = {};
+        const teamMembersData: Record<string, { count: number; members: Array<{ name: string; email: string; accountId: string }> }> = {};
         const addedStoryPointsData: Record<string, { total: number; issues: Array<{ issueKey: string; storyPoints: number; addedDate: string; issueType: string; priority: string }> }> = {};
 
         // Get granular metrics for each sprint
         for (const sprint of enhancedSprints) {
           try {
-            const teamMembers = await getSprintTeamMembers(sprint.sprintId);
+            const teamMembersDetails = await getSprintTeamMembersDetails(sprint.sprintId);
             teamMembersData[sprint.sprintId.toString()] = {
-              count: teamMembers,
-              members: [] // Could be enhanced to include actual member names
+              count: teamMembersDetails.count,
+              members: teamMembersDetails.members
             };
           } catch (error) {
             console.error(`Error getting team members for sprint ${sprint.sprintId}:`, error);

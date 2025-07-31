@@ -5,6 +5,23 @@ import {
   getIssuesFromJira, 
   getEpicsFromJira
 } from '../../services/jiraService';
+import { fetchWithProxy } from '../../utils/fetchWithProxy';
+
+// Import validateJiraCredentials from jiraService
+function validateJiraCredentials() {
+  const JIRA_URL = process.env.JIRA_URL;
+  const JIRA_USER = process.env.JIRA_USER;
+  const JIRA_TOKEN = process.env.JIRA_TOKEN;
+  
+  if (!JIRA_URL || !JIRA_USER || !JIRA_TOKEN) {
+    throw new Error('Jira credentials are not set in environment variables');
+  }
+  return { 
+    url: JIRA_URL, 
+    user: JIRA_USER, 
+    token: JIRA_TOKEN 
+  };
+}
 
 const router = Router();
 
@@ -176,6 +193,64 @@ router.get('/epics', async (req, res) => {
     res.json(epics);
   } catch (err) {
     console.error('Error in epics endpoint:', err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/v1/jira/project/{projectKey}/boards:
+ *   get:
+ *     summary: Get project boards
+ *     description: Returns all boards associated with a Jira project key.
+ *     tags:
+ *       - Jira
+ *     parameters:
+ *       - in: path
+ *         name: projectKey
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Jira project key
+ *     responses:
+ *       200:
+ *         description: Project boards
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *       400:
+ *         description: Missing required path param
+ *       500:
+ *         description: Server error
+ */
+router.get('/project/:projectKey/boards', async (req, res) => {
+  try {
+    const { projectKey } = req.params;
+    if (!projectKey) {
+      return res.status(400).json({ error: 'Missing required path param: projectKey' });
+    }
+    
+    // Get all boards and filter by project
+    const credentials = validateJiraCredentials();
+    const boardsResponse = await fetchWithProxy(`${credentials.url}/rest/agile/1.0/board`, {
+      auth: { username: credentials.user, password: credentials.token },
+    });
+    
+    if (!boardsResponse.ok) {
+      throw new Error(`Failed to fetch boards: ${boardsResponse.status}`);
+    }
+    
+    const boardsData = await boardsResponse.json() as { values: Array<{ id: number; name: string; location?: { projectKey: string } }> };
+    const projectBoards = boardsData.values.filter(board => 
+      board.location && board.location.projectKey === projectKey
+    );
+    
+    res.json(projectBoards);
+  } catch (err) {
+    console.error('Error in project boards endpoint:', err);
     res.status(500).json({ error: (err as Error).message });
   }
 });

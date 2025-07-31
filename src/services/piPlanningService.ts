@@ -1,4 +1,4 @@
-import { getReleasesFromJira, getSprintsFromJira, getIssuesFromJira } from './jiraService';
+import { getReleasesFromJira, getSprintsFromJira, getIssuesFromJira, getBoardIdFromProjectKey } from './jiraService';
 import { PiPlanningSummaryOptions, EpicAdvancedAnalytics } from '../types/piPlanning';
 import { 
   processStoryPoints, 
@@ -35,9 +35,33 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
   const releases = await getReleasesFromJira(project);
   console.log(`[DEBUG] PI Planning - Found ${releases.length} releases`);
 
-  // 2. Fetch sprints for the board
-  const sprints = await getSprintsFromJira(boardId);
-  console.log(`[DEBUG] PI Planning - Found ${sprints.length} total sprints`);
+  // 2. Determine the actual board ID to use
+  let actualBoardId: string;
+  try {
+    // Check if boardId is a project key (non-numeric) or board ID (numeric)
+    const isNumeric = /^\d+$/.test(boardId);
+    if (isNumeric) {
+      actualBoardId = boardId;
+      console.log(`[DEBUG] PI Planning - Using board ID directly: ${actualBoardId}`);
+    } else {
+      // It's a project key, need to get the board ID first
+      actualBoardId = await getBoardIdFromProjectKey(boardId);
+      console.log(`[DEBUG] PI Planning - Converted project key ${boardId} to board ID: ${actualBoardId}`);
+    }
+  } catch (error) {
+    console.error(`[DEBUG] PI Planning - Error getting board ID for ${boardId}:`, error);
+    throw new Error(`No board found for ${boardId}. Please check if the project has any boards configured in Jira.`);
+  }
+
+  // 3. Fetch sprints for the board with fallback logic
+  let sprints = await getSprintsFromJira(actualBoardId, 'active,closed,future', { originBoardId: true });
+  console.log(`[DEBUG] PI Planning - Found ${sprints.length} total sprints with originBoardId=true`);
+
+  if (sprints.length === 0) {
+    console.log(`[DEBUG] PI Planning - No sprints found with originBoardId=true, trying with originBoardId=false`);
+    sprints = await getSprintsFromJira(actualBoardId, 'active,closed,future', { originBoardId: false });
+    console.log(`[DEBUG] PI Planning - Found ${sprints.length} total sprints with fallback logic`);
+  }
 
   // 3. Filter sprints by PI date range (if dates are provided)
   const filteredSprints = sprints.filter(sprint => {

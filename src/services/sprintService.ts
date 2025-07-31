@@ -34,7 +34,7 @@ export async function getSprintDetails(sprintId: number, boardIdOrProjectKey?: s
     const actualBoardId = await getBoardId(boardIdToUse);
     console.log(`[DEBUG] Using board ID: ${actualBoardId} for sprint lookup`);
     
-    const sprints = await getSprintsFromJira(actualBoardId);
+    const sprints = await getSprintsFromJira(actualBoardId, 'active,closed,future');
     console.log(`[DEBUG] Found ${sprints.length} sprints in board ${actualBoardId}`);
     
     const sprint = sprints.find(sprintItem => sprintItem.id === sprintId);
@@ -233,10 +233,17 @@ export async function getCurrentSprintObjectives(boardId: string): Promise<{
   }>;
 }> {
   try {
+    console.log(`[DEBUG] Getting current sprint objectives for board: ${boardId}`);
+    
     // Get current active sprint for the board (Python equivalent)
     const jql = `Sprint in openSprints() AND board = ${boardId}`;
+    console.log(`[DEBUG] Using JQL: ${jql}`);
+    
     const sprintIssues = await getIssuesFromJira(jql);
+    console.log(`[DEBUG] Found ${sprintIssues.length} issues in current sprint`);
+    
     const breakdown = calculateStoryPointBreakdown(sprintIssues);
+    console.log(`[DEBUG] Story point breakdown:`, breakdown);
     
     const objectives: Array<{
       issueKey: string;
@@ -252,6 +259,8 @@ export async function getCurrentSprintObjectives(boardId: string): Promise<{
       });
     }
 
+    console.log(`[DEBUG] Created ${objectives.length} objectives`);
+
     return {
       completedStoryPoints: breakdown.completed,
       inProgressStoryPoints: breakdown.inProgress,
@@ -260,7 +269,13 @@ export async function getCurrentSprintObjectives(boardId: string): Promise<{
     };
   } catch (error) {
     console.error('Error getting current sprint objectives:', error);
-    throw error;
+    // Return empty objectives instead of throwing error
+    return {
+      completedStoryPoints: 0,
+      inProgressStoryPoints: 0,
+      toDoStoryPoints: 0,
+      objectives: []
+    };
   }
 }
 

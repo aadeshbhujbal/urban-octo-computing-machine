@@ -23,7 +23,7 @@ const router = Router();
  *         schema:
  *           type: string
  *         required: true
- *         description: Jira board ID
+ *         description: Jira board ID (e.g., 59059) or project key (e.g., FRN)
  *       - in: query
  *         name: piStartDate
  *         schema:
@@ -132,7 +132,10 @@ router.get('/summary', async (req, res) => {
   try {
     const { project, boardId, piStartDate, piEndDate } = req.query;
     if (!project || !boardId || !piStartDate || !piEndDate) {
-      return res.status(400).json({ error: 'Missing required query params: project, boardId, piStartDate, piEndDate' });
+      return res.status(400).json({ 
+        error: 'Missing required query params: project, boardId, piStartDate, piEndDate',
+        note: 'boardId can be either a project key (e.g., FRN) or board ID (e.g., 59059)'
+      });
     }
     const result = await piPlanningSummaryService({
       project: project as string,
@@ -151,7 +154,10 @@ const getSummaryField = (field: string) => async (req: Request, res: Response) =
   try {
     const { project, boardId, piStartDate, piEndDate } = req.query;
     if (!project || !boardId || !piStartDate || !piEndDate) {
-      return res.status(400).json({ error: 'Missing required query params: project, boardId, piStartDate, piEndDate' });
+      return res.status(400).json({ 
+        error: 'Missing required query params: project, boardId, piStartDate, piEndDate',
+        note: 'boardId can be either a project key (e.g., FRN) or board ID (e.g., 59059)'
+      });
     }
 
     // Map the endpoint names to the actual field names in the response

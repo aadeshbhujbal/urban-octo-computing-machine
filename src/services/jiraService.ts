@@ -153,12 +153,12 @@ export async function getSprintsFromJira(
           break;
         }
 
-        const sprintData = await sprintResponse.json() as { values: JiraSprint[] };
+        const sprintData = await sprintResponse.json() as any;
         console.log(`[DEBUG] API response data:`, {
           valuesCount: sprintData.values?.length || 0,
-          isLast: false, // No isLast in this response structure
-          maxResults: maxResults,
-          startAt: startAt
+          isLast: sprintData.isLast || false,
+          maxResults: sprintData.maxResults || maxResults,
+          startAt: sprintData.startAt || startAt
         });
         
         if (!sprintData.values || sprintData.values.length === 0) {
@@ -259,12 +259,12 @@ export async function getSprintsFromJira(
         }
         
         // Early termination if we've processed all sprints (Python equivalent)
-        if (sprintData.values.length < maxResults) {
-          console.log(`[DEBUG] Reached end of sprints (less than maxResults)`);
+        if (sprintData.isLast || sprintData.values.length < maxResults) {
+          console.log(`[DEBUG] Reached end of sprints (isLast: ${sprintData.isLast}, values: ${sprintData.values.length})`);
           break;
         }
         
-        startAt += sprintData.values.length;
+        startAt = (sprintData.startAt || startAt) + sprintData.values.length;
       } catch (error) {
         console.error(`[DEBUG] Error fetching sprints for board ${boardId}:`, error);
         break;
@@ -335,7 +335,7 @@ export async function getIssuesFromJira(jql: string): Promise<JiraIssue[]> {
         auth: { username: credentials.user, password: credentials.token },
       });
 
-      const issueData = await issueResponse.json() as { issues: JiraIssue[] };
+      const issueData = await issueResponse.json() as any;
       if (!issueData.issues || issueData.issues.length === 0) break;
 
       issues.push(...issueData.issues);
@@ -524,11 +524,8 @@ export async function getVelocityStatsFromJira(boardIdOrProjectKey: string): Pro
       boardId = await getBoardIdFromProjectKey(boardIdOrProjectKey);
     }
     
-    const queryParams = new URLSearchParams({
-      rapidViewId: boardId
-    });
-    
-    const velocityResponse = await fetchWithProxy(`${credentials.url}/rest/greenhopper/1.0/rapid/charts/velocity?${queryParams}`, {
+    // Use the Jira REST API for velocity stats (GreenHopper API is deprecated, but this endpoint still works)
+    const velocityResponse = await fetchWithProxy(`${credentials.url}/rest/greenhopper/1.0/rapid/charts/velocity?rapidViewId=${boardId}`, {
       auth: { username: credentials.user, password: credentials.token },
     });
     
