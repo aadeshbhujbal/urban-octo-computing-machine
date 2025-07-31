@@ -138,7 +138,34 @@ router.get('/:sprintId', async (req, res) => {
       return res.status(404).json({ error: 'Sprint not found' });
     }
 
-    const result: any = {
+    const result: {
+      basic: {
+        id: number;
+        name: string;
+        state: string;
+        startDate: string;
+        endDate: string;
+        goal: string;
+      };
+      analytics?: {
+        totalIssues: number;
+        completedIssues: number;
+        totalStoryPoints: number;
+        completedStoryPoints: number;
+        velocity: number;
+        efficiency: number;
+      } | null;
+      objectives?: {
+        completedStoryPoints: number;
+        inProgressStoryPoints: number;
+        toDoStoryPoints: number;
+        objectives: Array<{
+          issueKey: string;
+          issueUrl: string;
+          description: string;
+        }>;
+      } | null;
+    } = {
       basic: {
         id: sprintDetails.sprintId,
         name: sprintDetails.sprintName,
@@ -339,7 +366,7 @@ router.get('/list', async (req, res) => {
     const includeAnalyticsBool = includeAnalytics === 'true';
 
     // Get sprints with filtering
-    const sprints = await getSprintsFromJira(boardIdToUse, state as string, {
+    let sprints = await getSprintsFromJira(boardIdToUse, state as string, {
       startDate: startDate as string,
       endDate: endDate as string,
       timezone: 'UTC',
@@ -348,10 +375,39 @@ router.get('/list', async (req, res) => {
       originBoardId: true
     });
 
+    console.log(`[DEBUG] Found ${sprints.length} sprints for board ${boardIdToUse}`);
+
+    if (sprints.length === 0) {
+      console.log(`[DEBUG] No sprints found with origin_board_id=true, trying with origin_board_id=false`);
+      
+      // Python fallback logic: try without origin board ID filter
+      const fallbackSprints = await getSprintsFromJira(boardIdToUse, state as string, {
+        startDate: startDate as string,
+        endDate: endDate as string,
+        timezone: 'UTC',
+        sprintExcludeFilter: sprintExcludeFilter as string,
+        sprintIncludeFilter: sprintIncludeFilter as string,
+        originBoardId: false
+      });
+      
+      if (fallbackSprints.length === 0) {
+        return res.status(404).json({ 
+          error: `No sprints found for ${projectKeyOrBoardId} (board ID: ${boardIdToUse})`,
+          boardId: boardIdToUse,
+          projectKeyOrBoardId: projectKeyOrBoardId,
+          message: 'Try checking if the project has boards configured in Jira'
+        });
+      }
+      
+      // Use fallback sprints
+      sprints = fallbackSprints;
+      console.log(`[DEBUG] Found ${sprints.length} sprints with fallback logic`);
+    }
+
     // Sort sprints
     const sortedSprints = sprints.sort((firstSprint, secondSprint) => {
-      let firstValue: any;
-      let secondValue: any;
+      let firstValue: number | string;
+      let secondValue: number | string;
 
       switch (sortBy) {
         case 'startDate':

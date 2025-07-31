@@ -362,7 +362,11 @@ export async function getEpicsFromJira(boardId: string): Promise<JiraEpic[]> {
     const boardResponse = await fetchWithProxy(`${credentials.url}/rest/agile/1.0/board/${boardId}`, {
       auth: { username: credentials.user, password: credentials.token },
     });
-    const projectKey = (await boardResponse.json() as { location: { projectKey: string } }).location.projectKey;
+    const boardData = await boardResponse.json() as { location?: { projectKey: string } };
+    if (!boardData.location) {
+      throw new Error(`Board ${boardId} has no location/project information`);
+    }
+    const projectKey = boardData.location.projectKey;
 
     // Search for epics in that project
     const epicJql = `project = "${projectKey}" AND issuetype in (Epic, Feature) ORDER BY created DESC`;
@@ -424,13 +428,15 @@ export async function getBoardIdFromProjectKey(projectKey: string): Promise<stri
       throw new Error(`Failed to fetch boards: ${boardsResponse.status} ${boardsResponse.statusText}`);
     }
     
-    const boardsData = await boardsResponse.json() as { values: Array<{ id: number; location: { projectKey: string } }> };
+    const boardsData = await boardsResponse.json() as { values: Array<{ id: number; location?: { projectKey: string } }> };
     
-    // Find board for the project
-    const board = boardsData.values.find(b => b.location.projectKey === projectKey);
+    // Find board for the project - handle boards without location
+    const board = boardsData.values.find(b => b.location && b.location.projectKey === projectKey);
     
     if (!board) {
-      throw new Error(`No board found for project key: ${projectKey}`);
+      console.error(`No board found for project key: ${projectKey}. Available boards:`, 
+        boardsData.values.map(b => ({ id: b.id, location: b.location })));
+      throw new Error(`No board found for project key: ${projectKey}. Please check if the project has any boards configured in Jira.`);
     }
     
     return board.id.toString();

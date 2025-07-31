@@ -30,7 +30,13 @@ export async function getCurrentSummary(req: Request, res: Response) {
 
     // 3. PI Planning current sprints - use current sprint dates if no PI dates provided
     let piSummary = null;
-    let currentPiSprints: any[] = [];
+    let currentPiSprints: Array<{
+      id: number;
+      name?: string;
+      startDate?: string;
+      endDate?: string;
+      state?: string;
+    }> = [];
     let currentPI = null;
     
     // Use current sprint dates for PI Planning if no PI dates provided

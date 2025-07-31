@@ -215,7 +215,13 @@ function isBot(username: string): boolean {
  * Get default branch for a project (Python equivalent)
  * Python: def get_default_branch(project):
  */
-function getDefaultBranch(project: any): string {
+interface GitLabProject {
+  id: number;
+  name?: string;
+  default_branch?: string;
+}
+
+function getDefaultBranch(project: GitLabProject): string {
   return project.default_branch || 'main';
 }
 
@@ -255,12 +261,6 @@ function isMeaningfulComment(text: string): boolean {
   return true;
 }
 
-interface GitLabProject {
-  id: number;
-  name?: string;
-  default_branch?: string;
-}
-
 /**
  * Get contribution data (Python equivalent)
  * Python: def get_contribution_data(gl, group_id, start_date, end_date, user_mapping):
@@ -291,9 +291,13 @@ export async function getContributionData(
     
     // Fetch push events (GitLab API doesn't have direct events endpoint, so we'll use commits)
     try {
+      // Format dates properly for GitLab API
+      const sinceDate = new Date(startDate).toISOString();
+      const untilDate = new Date(endDate).toISOString();
+      
       const commits = await api.Commits.all(project.id, {
-        since: startDate,
-        until: endDate,
+        since: sinceDate,
+        until: untilDate,
         ref_name: defaultBranch
       });
       
@@ -782,7 +786,7 @@ export async function processMergeRequest(
       const approvalState = await api.MergeRequestApprovals.approvalState(projectId, mergeRequestId);
       if (approvalState.approved_by && Array.isArray(approvalState.approved_by)) {
         approvers = approvalState.approved_by
-          .map((approver: any) => approver.user?.name || approver.user?.displayName || 'Unknown')
+          .map((approver: { user?: { name?: string; displayName?: string } }) => approver.user?.name || approver.user?.displayName || 'Unknown')
           .join(', ');
       }
     } catch (error) {

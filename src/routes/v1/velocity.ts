@@ -375,6 +375,8 @@ router.get('/analytics', async (req, res) => {
       sprintPrefix: sprintPrefix as string | undefined,
     });
 
+    console.log(`[DEBUG] Velocity summary result: ${summaryResult.sprints.length} sprints found`);
+
     // Calculate additional metrics for each sprint
     const enhancedSprints = summaryResult.sprints.map(sprint => {
       const startDate = new Date(sprint.startDate);
@@ -399,7 +401,69 @@ router.get('/analytics', async (req, res) => {
       totalDays: dates.length > 0 ? Math.ceil((dates[dates.length - 1].getTime() - dates[0].getTime()) / (1000 * 60 * 60 * 24)) : 0
     };
 
-    const result: any = {
+    const result: {
+      summary: {
+        boardId: string;
+        totalSprints: number;
+        dateRange: {
+          startDate: string;
+          endDate: string;
+          totalDays: number;
+        };
+        sprints: Array<{
+          sprintId: number;
+          sprintName: string;
+          startDate: string;
+          endDate: string;
+          duration: number;
+          committed: number;
+          completed: number;
+          teamMembers: number;
+          addedStoryPoints: number;
+          efficiency: number;
+          spillover: number;
+          velocity: number;
+          allottedStoryPoints: number;
+          optimalStoryPoints: number;
+          efficiencyBasedOnAllotted: number;
+        }>;
+      };
+      chartData?: {
+        labels: string[];
+        committed: number[];
+        completed: number[];
+        allotted: number[];
+        added: number[];
+        spillover: number[];
+        efficiency: number[];
+        teamMembers: number[];
+        startDates: string[];
+        endDates: string[];
+        velocity: number[];
+      } | null;
+      granularMetrics?: {
+        teamMembers: Record<string, { count: number; members: string[] }>;
+        addedStoryPoints: Record<string, { total: number; issues: Array<{ issueKey: string; storyPoints: number; addedDate: string; issueType: string; priority: string }> }>;
+      } | null;
+      trends?: {
+        velocity: { trend: string; averageVelocity: number; velocityChange: number; velocityChangePercent: number };
+        efficiency: { trend: string; averageEfficiency: number; efficiencyChange: number; efficiencyChangePercent: number };
+        teamSize: { averageTeamSize: number; teamSizeChange: number; teamSizeStability: string };
+        spillover: { averageSpillover: number; spilloverTrend: string; spilloverChange: number; spilloverChangePercent: number };
+      } | null;
+      insights?: {
+        performance: {
+          bestSprint: { sprintId: number; sprintName: string; efficiency: number; velocity: number };
+          worstSprint: { sprintId: number; sprintName: string; efficiency: number; velocity: number };
+          mostConsistentSprint: { sprintId: number; sprintName: string; consistencyScore: number };
+        };
+        recommendations: Array<{ type: string; message: string; priority: string; impact: string }>;
+      } | null;
+      predictions?: {
+        nextSprint: { predictedVelocity: number; confidence: number; factors: string[] };
+        forecast: { next3Sprints: Array<{ sprintNumber: number; predictedVelocity: number; confidence: number; riskLevel: string }> };
+      } | null;
+    } = {
       summary: {
         ...summaryResult,
         sprints: enhancedSprints,
@@ -445,8 +509,8 @@ router.get('/analytics', async (req, res) => {
     // Include granular metrics if requested
     if (includeGranularMetricsBool) {
       try {
-        const teamMembersData: Record<string, any> = {};
-        const addedStoryPointsData: Record<string, any> = {};
+        const teamMembersData: Record<string, { count: number; members: string[] }> = {};
+        const addedStoryPointsData: Record<string, { total: number; issues: Array<{ issueKey: string; storyPoints: number; addedDate: string; issueType: string; priority: string }> }> = {};
 
         // Get granular metrics for each sprint
         for (const sprint of enhancedSprints) {
@@ -982,7 +1046,23 @@ function calculateTrend(values: number[]): { direction: string; change: number; 
 }
 
 // Helper function to generate recommendations
-function generateRecommendations(trends: any, sprints: any[]): any[] {
+interface VelocityTrends {
+  velocity: { trend: string; averageVelocity: number; velocityChange: number; velocityChangePercent: number };
+  efficiency: { trend: string; averageEfficiency: number; efficiencyChange: number; efficiencyChangePercent: number };
+  teamSize: { averageTeamSize: number; teamSizeChange: number; teamSizeStability: string };
+  spillover: { averageSpillover: number; spilloverTrend: string; spilloverChange: number; spilloverChangePercent: number };
+}
+
+interface VelocitySprint {
+  sprintId: number;
+  sprintName: string;
+  efficiency: number;
+  velocity: number;
+  teamMembers: number;
+  spillover: number;
+}
+
+function generateRecommendations(trends: VelocityTrends, sprints: VelocitySprint[]): Array<{ type: string; message: string; priority: string; impact: string }> {
   const recommendations = [];
   
   if (trends.velocity.trend === 'decreasing') {
@@ -1003,7 +1083,7 @@ function generateRecommendations(trends: any, sprints: any[]): any[] {
     });
   }
   
-  if (trends.spillover.trend === 'increasing') {
+  if (trends.spillover.spilloverTrend === 'increasing') {
     recommendations.push({
       type: 'spillover',
       message: 'Spillover is increasing. Consider reducing sprint commitments.',
@@ -1012,7 +1092,7 @@ function generateRecommendations(trends: any, sprints: any[]): any[] {
     });
   }
   
-  if (trends.teamSize.trend === 'shrinking') {
+  if (trends.teamSize.teamSizeStability === 'shrinking') {
     recommendations.push({
       type: 'team',
       message: 'Team size is decreasing. Adjust velocity expectations accordingly.',

@@ -5,18 +5,24 @@ export async function getVelocitySummary(options: VelocitySummaryOptions): Promi
   const { boardId, numSprints, year, sprintPrefix } = options;
   
   try {
+    console.log(`[DEBUG] Getting velocity summary for: ${boardId}`);
+    
     // 1. Get closed sprints for the board/project
     let sprints = await getClosedSprintsFromJira(boardId);
+    console.log(`[DEBUG] Found ${sprints.length} closed sprints for ${boardId}`);
     if (sprintPrefix) {
-      sprints = sprints.filter((sprint) => sprint.name.startsWith(sprintPrefix));
+      sprints = sprints.filter((sprint) => sprint.name && sprint.name.startsWith(sprintPrefix));
     }
     if (year) {
-      sprints = sprints.filter((sprint) => sprint.startDate && new Date(sprint.startDate).getFullYear() === year);
+      sprints = sprints.filter((sprint) => {
+        if (!sprint.startDate) return false;
+        const sprintDate = new Date(sprint.startDate);
+        return sprintDate.getFullYear() === year;
+      });
     }
+    // Sort sprints by ID in reverse order (Python equivalent)
     sprints = sprints.sort((firstSprint, secondSprint) => {
-      const firstSprintStartDate = firstSprint.startDate ? new Date(firstSprint.startDate).getTime() : 0;
-      const secondSprintStartDate = secondSprint.startDate ? new Date(secondSprint.startDate).getTime() : 0;
-      return secondSprintStartDate - firstSprintStartDate;
+      return secondSprint.id - firstSprint.id;
     });
     if (numSprints) {
       sprints = sprints.slice(0, numSprints);
@@ -27,8 +33,8 @@ export async function getVelocitySummary(options: VelocitySummaryOptions): Promi
     const sprintVelocities = [];
     
     for (const sprint of sprints) {
-      // 3. Get velocity stats for the sprint
-      const sprintStat = (velocityData.velocityStatEntries && velocityData.velocityStatEntries[sprint.id]) || {};
+      // 3. Get velocity stats for the sprint (Python equivalent)
+      const sprintStat = (velocityData.velocityStatEntries && velocityData.velocityStatEntries[sprint.id.toString()]) || {};
       const committed = sprintStat.estimated?.value || 0;
       const completed = sprintStat.completed?.value || 0;
       
@@ -37,7 +43,7 @@ export async function getVelocitySummary(options: VelocitySummaryOptions): Promi
       const assigneeAccountIds = new Set(
         (issues || []).map((issue) => issue.fields.assignee?.accountId).filter((accountId): accountId is string => Boolean(accountId))
       );
-      const teamMembersCount = assigneeAccountIds.size || 15; // Default to 15 if no team members found
+      const teamMembersCount = assigneeAccountIds.size === 0 ? 15 : assigneeAccountIds.size; // Python equivalent: default to 15 if no team members found
 
       // 5. Calculate allotted and optimal story points
       const allottedStoryPoints = teamMembersCount * 8;  // 8 SP per team member
@@ -166,14 +172,15 @@ export async function getVelocityChartData(
     
     if (yearFilter) {
       filteredSprints = filteredSprints.filter(sprint => {
-        const sprintDate = new Date(sprint.startDate || '');
+        if (!sprint.startDate) return false;
+        const sprintDate = new Date(sprint.startDate);
         return sprintDate.getFullYear() === yearFilter;
       });
     }
     
     if (sprintPrefix) {
       filteredSprints = filteredSprints.filter(sprint => 
-        sprint.name.toLowerCase().includes(sprintPrefix.toLowerCase())
+        sprint.name && sprint.name.startsWith(sprintPrefix)
       );
     }
     
@@ -181,11 +188,9 @@ export async function getVelocityChartData(
       filteredSprints = filteredSprints.slice(-numSprints);
     }
     
-    // Sort by start date
+    // Sort by sprint ID in reverse order (Python equivalent)
     filteredSprints.sort((a, b) => {
-      const aDate = new Date(a.startDate || '');
-      const bDate = new Date(b.startDate || '');
-      return aDate.getTime() - bDate.getTime();
+      return b.id - a.id;
     });
     
     const velocityData = [];
@@ -197,9 +202,9 @@ export async function getVelocityChartData(
       
       if (!startDate || !endDate) continue;
       
-      // Get velocity stats for the sprint
+      // Get velocity stats for the sprint (Python equivalent)
       const velocityDataForBoard = await getVelocityStatsFromJira(boardId);
-      const sprintStat = (velocityDataForBoard.velocityStatEntries && velocityDataForBoard.velocityStatEntries[sprintId]) || {};
+      const sprintStat = (velocityDataForBoard.velocityStatEntries && velocityDataForBoard.velocityStatEntries[sprintId.toString()]) || {};
       const commitment = sprintStat.estimated?.value || 0;
       const completed = sprintStat.completed?.value || 0;
       

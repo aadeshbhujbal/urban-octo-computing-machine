@@ -147,8 +147,14 @@ export async function getSprintSummary(options: SprintSummaryOptions): Promise<S
     const actualBoardId = await getBoardId(boardId);
     console.log(`[DEBUG] Using board ID: ${actualBoardId} for input: ${boardId}`);
     
-    // Get sprints from board using existing Jira service
-    const allSprints = await getSprintsFromJira(actualBoardId, state);
+    // Get sprints from board using existing Jira service with origin_board_id=true (Python equivalent)
+    let allSprints = await getSprintsFromJira(actualBoardId, state, { originBoardId: true });
+    
+    // Python fallback logic: if no sprints found with origin_board_id=true, try with origin_board_id=false
+    if (allSprints.length === 0) {
+      console.log(`[DEBUG] No sprints found with origin_board_id=true, trying with origin_board_id=false`);
+      allSprints = await getSprintsFromJira(actualBoardId, state, { originBoardId: false });
+    }
     
     console.log(`[DEBUG] Found ${allSprints.length} sprints for board ${actualBoardId}`);
     if (allSprints.length > 0) {
@@ -227,7 +233,7 @@ export async function getCurrentSprintObjectives(boardId: string): Promise<{
   }>;
 }> {
   try {
-    // Get current active sprint for the board
+    // Get current active sprint for the board (Python equivalent)
     const jql = `Sprint in openSprints() AND board = ${boardId}`;
     const sprintIssues = await getIssuesFromJira(jql);
     const breakdown = calculateStoryPointBreakdown(sprintIssues);
@@ -274,7 +280,9 @@ async function getSprintObjective(sprintId: number): Promise<string> {
     }
 
     const sprintData = await response.json() as JiraSprintResponse;
-    return sprintData.goal || '';
+    // Format goal like Python implementation - replace newlines with HTML breaks
+    const goal = sprintData.goal || '';
+    return goal.replace(/\n/g, '<br/>');
   } catch (error) {
     console.warn(`Error getting sprint objective for sprint ${sprintId}:`, error);
     return '';
