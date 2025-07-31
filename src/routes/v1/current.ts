@@ -7,8 +7,8 @@ const router = Router();
  * @swagger
  * /api/v1/current/summary:
  *   get:
- *     summary: Get unified current summary for Jira, PI Planning, and Velocity
- *     description: Returns the current Jira sprint, current Jira release, current PI Planning sprints, and current velocity sprint in a unified response.
+ *     summary: Get unified current summary for Jira, PI Planning, Velocity, and Sprint Objectives
+ *     description: Returns the current Jira sprint, current Jira release, current PI Planning sprints, current velocity sprint, and current sprint objectives in a unified response.
  *     tags:
  *       - Current
  *     parameters:
@@ -73,6 +73,27 @@ const router = Router();
  *                       nullable: true
  *                     latestSprintEfficiency:
  *                       type: number
+ *                 sprintObjectives:
+ *                   type: object
+ *                   nullable: true
+ *                   properties:
+ *                     completedStoryPoints:
+ *                       type: number
+ *                     inProgressStoryPoints:
+ *                       type: number
+ *                     toDoStoryPoints:
+ *                       type: number
+ *                     objectives:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           issueKey:
+ *                             type: string
+ *                           issueUrl:
+ *                             type: string
+ *                           description:
+ *                             type: string
  *       400:
  *         description: Missing required query params
  *       500:

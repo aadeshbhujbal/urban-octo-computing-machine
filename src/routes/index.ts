@@ -7,6 +7,8 @@ import currentRoutes from './v1/current';
 import epicRoutes from './v1/epic';
 import sprintRoutes from './v1/sprint';
 import milestoneRoutes from './v1/milestone';
+import jiraRoutes from './v1/jira';
+import orchestrationRoutes from './v1/orchestration';
 
 const router = Router();
 
@@ -18,5 +20,7 @@ router.use('/api/v1/epic', epicRoutes);
 router.use('/api/v1/sprint', sprintRoutes);
 router.use('/api/v1/milestone', milestoneRoutes);
 router.use('/api/v1/current', currentRoutes);
+router.use('/api/v1/jira', jiraRoutes);
+router.use('/api/v1/orchestration', orchestrationRoutes);
 
 export default router; 

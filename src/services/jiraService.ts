@@ -1,5 +1,5 @@
 import { fetchWithProxy } from '../utils/fetchWithProxy';
-import { JiraProject, JiraVersion, JiraSprint, JiraIssue, JiraEpic, JiraIssueFields } from '../types/jira';
+import { JiraProject, JiraVersion, JiraSprint, JiraIssue, JiraEpic, JiraIssueFields, JiraSprintState } from '../types/jira';
 
 const JIRA_URL = process.env.JIRA_URL;
 const JIRA_USER = process.env.JIRA_USER;
@@ -42,7 +42,8 @@ export async function getReleasesFromJira(projectName?: string): Promise<JiraVer
         : true
     );
     if (!targetProject) {
-      throw new Error(`Project not found: ${projectName}`);
+      console.warn(`Project not found: ${projectName}. Available projects: ${allProjects.map(p => p.key).join(', ')}`);
+      return []; // Return empty array instead of throwing error
     }
 
     // 3. Get versions (releases) for the project
@@ -77,7 +78,7 @@ export async function getReleasesFromJira(projectName?: string): Promise<JiraVer
     }));
   } catch (error) {
     console.error(`Error fetching releases for project ${projectName}:`, error);
-    throw error;
+    return []; // Return empty array instead of throwing error
   }
 }
 
@@ -127,7 +128,7 @@ export async function getSprintsFromJira(
     console.log(`[DEBUG] Fetching sprints for board ${boardId} with state: ${state}`);
     console.log(`[DEBUG] Date range: ${startDate} to ${endDate}`);
     console.log(`[DEBUG] Filters: exclude=${sprintExcludeFilter}, include=${sprintIncludeFilter}, originBoardId=${originBoardId}`);
-
+    
     while (true) {
       try {
         const queryParams = new URLSearchParams({
@@ -152,12 +153,12 @@ export async function getSprintsFromJira(
           break;
         }
 
-        const sprintData = await sprintResponse.json() as JiraSprintListResponse;
+        const sprintData = await sprintResponse.json() as { values: JiraSprint[] };
         console.log(`[DEBUG] API response data:`, {
           valuesCount: sprintData.values?.length || 0,
-          isLast: sprintData.isLast,
-          maxResults: sprintData.maxResults,
-          startAt: sprintData.startAt
+          isLast: false, // No isLast in this response structure
+          maxResults: maxResults,
+          startAt: startAt
         });
         
         if (!sprintData.values || sprintData.values.length === 0) {
@@ -173,9 +174,13 @@ export async function getSprintsFromJira(
             continue;
           }
           
+          // Handle null/undefined dates properly
+          const startDate = sprint.startDate || null;
+          const endDate = sprint.endDate || null;
+          
           // Skip sprints without dates (Python equivalent)
-          if (!sprint.startDate || !sprint.endDate) {
-            console.log(`[DEBUG] Skipping sprint without dates: ${sprint.id} - ${sprint.name}`);
+          if (!startDate || !endDate) {
+            console.log(`[DEBUG] Skipping sprint without dates: ${sprint.id} - ${sprint.name} (startDate: ${startDate}, endDate: ${endDate})`);
             continue;
           }
           
@@ -199,8 +204,14 @@ export async function getSprintsFromJira(
 
           // Parse sprint dates with timezone awareness (Python equivalent)
           try {
-            const sprintStart = new Date(sprint.startDate);
-            const sprintEnd = new Date(sprint.endDate);
+            const sprintStart = new Date(startDate);
+            const sprintEnd = new Date(endDate);
+            
+            // Validate parsed dates
+            if (isNaN(sprintStart.getTime()) || isNaN(sprintEnd.getTime())) {
+              console.log(`[DEBUG] Skipping sprint with invalid dates: ${sprint.id} - ${sprint.name} (startDate: ${startDate}, endDate: ${endDate})`);
+              continue;
+            }
             
             // Check if sprint is within the date range (Python equivalent)
             if (startDateObj && endDateObj) {
@@ -226,9 +237,20 @@ export async function getSprintsFromJira(
               }
             }
             
+            // Convert to JiraSprint format for consistency
+            const processedSprint: JiraSprint = {
+              id: sprint.id,
+              name: sprint.name,
+              state: sprint.state as JiraSprintState,
+              startDate: startDate,
+              endDate: endDate,
+              completeDate: sprint.completeDate,
+              originBoardId: sprint.originBoardId
+            };
+            
             // Add sprint to filtered results
-            sprints.push(sprint);
-            console.log(`[DEBUG] Added sprint: ${sprint.id} - ${sprint.name} (${sprint.startDate} to ${sprint.endDate})`);
+            sprints.push(processedSprint);
+            console.log(`[DEBUG] Added sprint: ${sprint.id} - ${sprint.name} (${startDate} to ${endDate})`);
             
           } catch (dateError) {
             console.error(`[DEBUG] Error parsing dates for sprint ${sprint.id}:`, dateError);
@@ -313,7 +335,7 @@ export async function getIssuesFromJira(jql: string): Promise<JiraIssue[]> {
         auth: { username: credentials.user, password: credentials.token },
       });
 
-      const issueData = await issueResponse.json() as JiraSearchResponse;
+      const issueData = await issueResponse.json() as { issues: JiraIssue[] };
       if (!issueData.issues || issueData.issues.length === 0) break;
 
       issues.push(...issueData.issues);
@@ -340,7 +362,7 @@ export async function getEpicsFromJira(boardId: string): Promise<JiraEpic[]> {
     const boardResponse = await fetchWithProxy(`${credentials.url}/rest/agile/1.0/board/${boardId}`, {
       auth: { username: credentials.user, password: credentials.token },
     });
-    const projectKey = (await boardResponse.json() as JiraBoardResponse).location.projectKey;
+    const projectKey = (await boardResponse.json() as { location: { projectKey: string } }).location.projectKey;
 
     // Search for epics in that project
     const epicJql = `project = "${projectKey}" AND issuetype in (Epic, Feature) ORDER BY created DESC`;
@@ -372,7 +394,7 @@ export async function getEpicsFromJira(boardId: string): Promise<JiraEpic[]> {
       auth: { username: credentials.user, password: credentials.token },
     });
 
-    const epicIssues = (await epicResponse.json() as JiraSearchResponse).issues || [];
+    const epicIssues = (await epicResponse.json() as { issues: JiraIssue[] }).issues || [];
     
     // Convert JiraIssue to JiraEpic format
     return epicIssues.map((epicIssue: JiraIssue): JiraEpic => ({
@@ -428,7 +450,7 @@ export async function getClosedSprintsFromJira(boardIdOrProjectKey: string): Pro
   } else {
     // It's a project key, need to get the board ID first
     const boardId = await getBoardIdFromProjectKey(boardIdOrProjectKey);
-    return getSprintsFromJira(boardId, 'closed');
+  return getSprintsFromJira(boardId, 'closed');
   }
 }
 
@@ -445,7 +467,7 @@ export async function getSprintIssuesWithAssignee(sprintId: number): Promise<Jir
     const sprintIssuesResponse = await fetchWithProxy(`${credentials.url}/rest/agile/1.0/sprint/${sprintId}/issue?${queryParams}`, {
       auth: { username: credentials.user, password: credentials.token },
     });
-    return ((await sprintIssuesResponse.json() as JiraSearchResponse).issues) || [];
+    return ((await sprintIssuesResponse.json() as { issues: JiraIssue[] }).issues) || [];
   } catch (error) {
     console.error(`Error fetching sprint issues for sprint ${sprintId}:`, error);
     throw error;

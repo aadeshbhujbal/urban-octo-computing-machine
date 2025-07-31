@@ -7,7 +7,7 @@ import {
   JiraIssue 
 } from '../types/jira';
 import { getSprintsFromJira, getIssuesFromJira, getBoardIdFromProjectKey } from './jiraService';
-import { calculateAddedStoryPoints, calculateTeamMembersCount } from '../utils/storyPointUtils';
+import { calculateAddedStoryPoints, calculateTeamMembersCount, calculateStoryPointBreakdown } from '../utils/storyPointUtils';
 import { fetchWithProxy } from '../utils/fetchWithProxy';
 import config from '../config';
 
@@ -212,6 +212,48 @@ export async function getSprintSummary(options: SprintSummaryOptions): Promise<S
     return sprintData;
   } catch (error) {
     console.error('Error fetching sprint summary:', error);
+    throw error;
+  }
+}
+
+export async function getCurrentSprintObjectives(boardId: string): Promise<{
+  completedStoryPoints: number;
+  inProgressStoryPoints: number;
+  toDoStoryPoints: number;
+  objectives: Array<{
+    issueKey: string;
+    issueUrl: string;
+    description: string;
+  }>;
+}> {
+  try {
+    // Get current active sprint for the board
+    const jql = `Sprint in openSprints() AND board = ${boardId}`;
+    const sprintIssues = await getIssuesFromJira(jql);
+    const breakdown = calculateStoryPointBreakdown(sprintIssues);
+    
+    const objectives: Array<{
+      issueKey: string;
+      issueUrl: string;
+      description: string;
+    }> = [];
+
+    for (const issue of sprintIssues) {
+      objectives.push({
+        issueKey: issue.key,
+        issueUrl: `${config.jiraUrl}/browse/${issue.key}`,
+        description: issue.fields.summary || 'No description available'
+      });
+    }
+
+    return {
+      completedStoryPoints: breakdown.completed,
+      inProgressStoryPoints: breakdown.inProgress,
+      toDoStoryPoints: breakdown.toDo,
+      objectives
+    };
+  } catch (error) {
+    console.error('Error getting current sprint objectives:', error);
     throw error;
   }
 }

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getMilestones, getPIProgression, getCurrentSprintObjectives } from '../../services/milestoneService';
+import { getMilestones, getPIProgression } from '../../services/milestoneService';
 import { MilestoneStatus, TrackStatus } from '../../types/milestone';
 import { createServiceError, ServiceError } from '../../types/errors';
 
@@ -210,72 +210,6 @@ router.get('/pi-progression', async (req, res) => {
   }
 });
 
-/**
- * @swagger
- * /api/v1/milestone/sprint-objectives:
- *   get:
- *     summary: Get current sprint objectives with story points breakdown
- *     description: Returns current sprint objectives including story points by status and list of objectives.
- *     tags:
- *       - Milestone
- *     parameters:
- *       - in: query
- *         name: boardId
- *         schema:
- *           type: string
- *         required: true
- *         description: Jira board ID
- *     responses:
- *       200:
- *         description: Current sprint objectives
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 completedStoryPoints:
- *                   type: number
- *                 inProgressStoryPoints:
- *                   type: number
- *                 toDoStoryPoints:
- *                   type: number
- *                 objectives:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       issueKey:
- *                         type: string
- *                       issueUrl:
- *                         type: string
- *                       description:
- *                         type: string
- *       400:
- *         description: Missing required parameters
- *       500:
- *         description: Server error
- */
-router.get('/sprint-objectives', async (req, res) => {
-  try {
-    const { boardId } = req.query;
-    
-    if (!boardId) {
-      return res.status(400).json({ error: 'Missing required parameter: boardId' });
-    }
-
-    const result = await getCurrentSprintObjectives(boardId as string);
-
-    res.json(result);
-  } catch (err) {
-    console.error('Error in sprint objectives endpoint:', err);
-    if (err instanceof Error) {
-      const serviceError = createServiceError(err.message, 'Milestone Service', 'getCurrentSprintObjectives');
-      res.status(500).json({ error: serviceError.message, code: serviceError.code });
-    } else {
-      const serviceError = createServiceError('Unknown error occurred', 'Milestone Service', 'getCurrentSprintObjectives');
-      res.status(500).json({ error: serviceError.message, code: serviceError.code });
-    }
-  }
-});
+// Sprint objectives endpoint moved to /api/v1/sprint/objectives - not appropriate for milestone API
 
 export default router; 

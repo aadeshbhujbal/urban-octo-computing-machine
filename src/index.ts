@@ -1,14 +1,12 @@
-import express from 'express';
 import dotenv from 'dotenv';
+dotenv.config();
+import express from 'express';
 import healthRoutes from './routes/health';
-import jiraRoutes from './routes/v1/jira';
-import orchestrationRoutes from './routes/v1/orchestration';
 import apiRoutes from './routes/index';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJSDoc from 'swagger-jsdoc';
 
 // Load environment variables from .env file
-dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -41,10 +39,6 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Central health route
 app.use('/api/health', healthRoutes);
-
-// API Versioning: Mount all v1 routes under /api/v1
-app.use('/api/v1/jira', jiraRoutes);
-app.use('/api/v1/orchestration', orchestrationRoutes);
 
 // Use centralized API routes
 app.use('/', apiRoutes);

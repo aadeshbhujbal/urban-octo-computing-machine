@@ -106,47 +106,7 @@ export async function getPIProgression(projectKey: string, boardId: string, piSt
   }
 }
 
-export async function getCurrentSprintObjectives(boardId: string): Promise<{
-  completedStoryPoints: number;
-  inProgressStoryPoints: number;
-  toDoStoryPoints: number;
-  objectives: Array<{
-    issueKey: string;
-    issueUrl: string;
-    description: string;
-  }>;
-}> {
-  try {
-    // Get current active sprint
-    const jql = `Sprint in openSprints() AND Sprint = ${boardId}`;
-    const sprintIssues = await getIssuesFromJira(jql);
-    const breakdown = calculateStoryPointBreakdown(sprintIssues);
-    
-    const objectives: Array<{
-      issueKey: string;
-      issueUrl: string;
-      description: string;
-    }> = [];
-
-    for (const issue of sprintIssues) {
-      objectives.push({
-        issueKey: issue.key,
-        issueUrl: `${config.jiraUrl}/browse/${issue.key}`,
-        description: issue.fields.summary || 'No description available'
-      });
-    }
-
-    return {
-      completedStoryPoints: breakdown.completed,
-      inProgressStoryPoints: breakdown.inProgress,
-      toDoStoryPoints: breakdown.toDo,
-      objectives
-    };
-  } catch (error) {
-    console.error('Error getting current sprint objectives:', error);
-    throw error;
-  }
-}
+// Sprint objectives moved to sprint service - not appropriate for milestone service
 
 function determineTrackStatus(release: JiraVersion): TrackStatus {
   if (!release.releaseDate) {

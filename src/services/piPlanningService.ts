@@ -29,11 +29,15 @@ function getEpicRag(completed: number, total: number): string {
 export async function piPlanningSummaryService(options: PiPlanningSummaryOptions) {
   const { project, boardId, piStartDate, piEndDate } = options;
 
+  console.log(`[DEBUG] PI Planning - Project: ${project}, Board: ${boardId}, PI Dates: ${piStartDate} to ${piEndDate}`);
+
   // 1. Fetch releases for the project
   const releases = await getReleasesFromJira(project);
+  console.log(`[DEBUG] PI Planning - Found ${releases.length} releases`);
 
   // 2. Fetch sprints for the board
   const sprints = await getSprintsFromJira(boardId);
+  console.log(`[DEBUG] PI Planning - Found ${sprints.length} total sprints`);
 
   // 3. Filter sprints by PI date range (if dates are provided)
   const filteredSprints = sprints.filter(sprint => {
@@ -44,8 +48,12 @@ export async function piPlanningSummaryService(options: PiPlanningSummaryOptions
     const piEndDateObj = new Date(piEndDate);
     
     // Include sprints that overlap with the PI period
-    return (sprintStartDate <= piEndDateObj && sprintEndDate >= piStartDateObj);
+    const overlaps = (sprintStartDate <= piEndDateObj && sprintEndDate >= piStartDateObj);
+    console.log(`[DEBUG] Sprint ${sprint.name} (${sprint.startDate} to ${sprint.endDate}) overlaps with PI: ${overlaps}`);
+    return overlaps;
   });
+
+  console.log(`[DEBUG] PI Planning - Found ${filteredSprints.length} sprints in PI date range`);
 
   // Check if we have any sprints in the PI date range
   if (filteredSprints.length === 0) {
