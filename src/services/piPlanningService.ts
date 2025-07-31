@@ -1,289 +1,208 @@
-import { getReleasesFromJira, getSprintsFromJira, getIssuesFromJira, getBoardIdFromProjectKey } from './jiraService';
-import { PiPlanningSummaryOptions, EpicAdvancedAnalytics } from '../types/piPlanning';
 import { 
-  processStoryPoints, 
-  calculateStoryPointBreakdown, 
-  calculateGroupedStoryPointBreakdown,
-  calculateRagStatus,
-  calculateCompletionPercentage,
-  getSprintIdFromIssue,
-  getEpicKeyFromIssue
-} from '../utils/storyPointUtils';
+  getSprintsFromJira, 
+  getProjectKeyByExactName, 
+  getJiraStatusCategories,
+  getIssuesFromJira,
+  getReleasesFromJira
+} from './jiraService';
 
-
-
-function parseDate(dateStr?: string): Date | null {
-  if (!dateStr) return null;
-  // Jira dates are usually ISO 8601
-  return new Date(dateStr);
+// Extend JiraIssueFields to include additional fields
+interface ExtendedJiraIssueFields {
+  storyPoints?: number;
+  epic?: { key: string };
+  sprint?: Array<{
+    id: number;
+    state: string;
+    startDate: string;
+    endDate: string;
+    name: string;
+  }>;
+  customfield_10002?: number;  // Story points field
+  customfield_10341?: Array<{  // Sprint field
+    id: number;
+    state: string;
+    startDate: string;
+    endDate: string;
+    name: string;
+  }>;
+  parent?: { key: string };
+  status?: { name: string };
 }
 
-function getEpicRag(completed: number, total: number): string {
-  if (total === 0) return 'Red';
-  const pct = (completed / total) * 100;
-  if (pct > 90) return 'Green';
-  if (pct >= 80) return 'Amber';
-  return 'Red';
+interface PiPlanningOptions {
+  projectName: string;
+  boardId: string;
+  piStartDate: string;
+  piEndDate: string;
+  sprintExcludeFilter?: string;
+  sprintIncludeFilter?: string;
 }
 
-export async function piPlanningSummaryService(options: PiPlanningSummaryOptions) {
-  const { project, boardId, piStartDate, piEndDate } = options;
+interface SprintDetails {
+  startDate: Date;
+  endDate: Date;
+  name: string;
+}
 
-  console.log(`[DEBUG] PI Planning - Project: ${project}, Board: ${boardId}, PI Dates: ${piStartDate} to ${piEndDate}`);
+interface PiPlanningResult {
+  projectSprints: string[];
+  totalStoryPoints: number;
+  completedStoryPoints: number;
+  inProgressStoryPoints: number;
+  toDoStoryPoints: number;
+  piEpics: string[];
+  releases: any[];
+  currentSprints: string[];
+  sprints: Record<string, SprintDetails>;
+}
 
-  // 1. Fetch releases for the project
-  const releases = await getReleasesFromJira(project);
-  console.log(`[DEBUG] PI Planning - Found ${releases.length} releases`);
+export async function getPiPlanningData(options: PiPlanningOptions): Promise<PiPlanningResult> {
+  const {
+    projectName,
+    boardId,
+    piStartDate,
+    piEndDate,
+    sprintExcludeFilter,
+    sprintIncludeFilter
+  } = options;
 
-  // 2. Determine the actual board ID to use
-  let actualBoardId: string;
   try {
-    // Check if boardId is a project key (non-numeric) or board ID (numeric)
-    const isNumeric = /^\d+$/.test(boardId);
-    if (isNumeric) {
-      actualBoardId = boardId;
-      console.log(`[DEBUG] PI Planning - Using board ID directly: ${actualBoardId}`);
-    } else {
-      // It's a project key, need to get the board ID first
-      actualBoardId = await getBoardIdFromProjectKey(boardId);
-      console.log(`[DEBUG] PI Planning - Converted project key ${boardId} to board ID: ${actualBoardId}`);
+    // 1. Get project key and status categories
+    const { key: projectKey } = await getProjectKeyByExactName(projectName);
+    if (!projectKey) {
+      throw new Error(`Project not found: ${projectName}`);
     }
-  } catch (error) {
-    console.error(`[DEBUG] PI Planning - Error getting board ID for ${boardId}:`, error);
-    throw new Error(`No board found for ${boardId}. Please check if the project has any boards configured in Jira.`);
-  }
 
-  // 3. Fetch sprints for the board with fallback logic
-  let sprints = await getSprintsFromJira(actualBoardId, 'active,closed,future', { originBoardId: true });
-  console.log(`[DEBUG] PI Planning - Found ${sprints.length} total sprints with originBoardId=true`);
-
-  if (sprints.length === 0) {
-    console.log(`[DEBUG] PI Planning - No sprints found with originBoardId=true, trying with originBoardId=false`);
-    sprints = await getSprintsFromJira(actualBoardId, 'active,closed,future', { originBoardId: false });
-    console.log(`[DEBUG] PI Planning - Found ${sprints.length} total sprints with fallback logic`);
-  }
-
-  // 3. Filter sprints by PI date range (if dates are provided)
-  const filteredSprints = sprints.filter(sprint => {
-    if (!sprint.startDate || !sprint.endDate) return false;
-    const sprintStartDate = new Date(sprint.startDate);
-    const sprintEndDate = new Date(sprint.endDate);
-    const piStartDateObj = new Date(piStartDate);
-    const piEndDateObj = new Date(piEndDate);
+    // Get status categories with proper error handling
+    const statusCategories = await getJiraStatusCategories(projectKey);
+    if (!statusCategories) {
+      throw new Error(`Failed to get status categories for project: ${projectKey}`);
+    }
     
-    // Include sprints that overlap with the PI period
-    const overlaps = (sprintStartDate <= piEndDateObj && sprintEndDate >= piStartDateObj);
-    console.log(`[DEBUG] Sprint ${sprint.name} (${sprint.startDate} to ${sprint.endDate}) overlaps with PI: ${overlaps}`);
-    return overlaps;
-  });
+    // Match Python's status category names
+    const openStatusList = statusCategories['To Do'] || [];
+    const inProgressStatusList = statusCategories['In Progress'] || [];
+    const doneStatusList = statusCategories['Done'] || [];
+    
+    // Validate we have at least some statuses
+    if (!openStatusList.length && !inProgressStatusList.length && !doneStatusList.length) {
+      throw new Error(`No status categories found for project: ${projectKey}`);
+    }
 
-  console.log(`[DEBUG] PI Planning - Found ${filteredSprints.length} sprints in PI date range`);
+    // 2. Get sprints for the PI with proper timezone handling
+    const sprints = await getSprintsFromJira(boardId, 'active,closed,future', {
+      startDate: piStartDate,
+      endDate: piEndDate,
+      timezone: 'UTC',  // Match Python's timezone handling
+      sprintExcludeFilter,
+      sprintIncludeFilter,
+      originBoardId: true  // Match Python's default behavior
+    });
 
-  // Check if we have any sprints in the PI date range
-  if (filteredSprints.length === 0) {
-    return {
-      releases,
-      sprints: [],
-      issues: [],
-      storyPoints: 0,
-      completedStoryPoints: 0,
-      inProgressStoryPoints: 0,
-      toDoStoryPoints: 0,
-      completedPercentage: 0,
-      ragStatus: 'Red',
-      epicBreakdown: {},
-      sprintBreakdown: {},
-      currentSprints: [],
-      previousSprints: [],
-      futureSprints: [],
-      currentSprintStats: { groupTotal: 0, groupCompleted: 0, groupInProgress: 0, groupToDo: 0 },
-      previousSprintStats: { groupTotal: 0, groupCompleted: 0, groupInProgress: 0, groupToDo: 0 },
-      futureSprintStats: { groupTotal: 0, groupCompleted: 0, groupInProgress: 0, groupToDo: 0 },
-      burnup: [],
-      storyPointsCurrent: 0,
-      epicProgress: {},
-      raid: {},
-      wsjf: {},
-      piScope: {},
-      progress: {}
-    };
-  }
+    if (!sprints.length) {
+      // Try again without origin board ID check
+      const sprintsWithoutOrigin = await getSprintsFromJira(boardId, 'active,closed,future', {
+        startDate: piStartDate,
+        endDate: piEndDate,
+        sprintExcludeFilter,
+        sprintIncludeFilter,
+        originBoardId: false
+      });
+      
+      if (!sprintsWithoutOrigin.length) {
+        throw new Error('No sprints found for the given date range');
+      }
+      sprints.push(...sprintsWithoutOrigin);
+    }
 
-  // 4. Fetch issues for the project and filtered sprints
-  const sprintIds = filteredSprints.map(sprint => sprint.id);
-  const sprintClause = sprintIds.length > 0 ? `OR Sprint in (${sprintIds.join(',')})` : '';
-  
-  const jql = `project = "${project}" 
-    AND issuetype in (Story, Bug, "User Story", Task) 
-    AND (
-      (created >= "${piStartDate}" AND created <= "${piEndDate}")
-      OR (updated >= "${piStartDate}" AND updated <= "${piEndDate}")
-      OR (resolutiondate >= "${piStartDate}" AND resolutiondate <= "${piEndDate}")
-      ${sprintClause}
-    )`;
-  
+    const projectSprints = sprints.map(sprint => sprint.id.toString());
+
+    // 3. Get issues for the sprints
+    // Build JQL query matching Python's implementation
+    const issueTypes = ['Story', 'Bug', 'User Story', 'Task', 'Sub-task'];
+    const jql = `project = "${projectName}" AND issuetype in (${issueTypes.map(t => `"${t}"`).join(',')}) AND Sprint in (${projectSprints.join(',')}) ORDER BY Rank ASC`;
 
   const issues = await getIssuesFromJira(jql);
 
-  // 5. Calculate story points and group by status using shared utilities
-  const breakdown = calculateStoryPointBreakdown(issues);
-  
-  // Epic and sprint breakdowns using shared utilities
-  const epicBreakdown = calculateGroupedStoryPointBreakdown(issues, getEpicKeyFromIssue);
-  const sprintBreakdown = calculateGroupedStoryPointBreakdown(issues, getSprintIdFromIssue);
+    // 4. Process issues
+    let totalStoryPoints = 0;
+    let completedStoryPoints = 0;
+    let inProgressStoryPoints = 0;
+    let toDoStoryPoints = 0;
+    const piEpics = new Set<string>();
+    const currentSprints = new Set<string>();
+    const sprintDetails: Record<string, any> = {};
 
-  // Convert Maps to Records for compatibility
-  const epicStoryPoints: Record<string, { completed: number; inProgress: number; toDo: number; total: number }> = {};
-  const sprintStoryPoints: Record<string, { completed: number; inProgress: number; toDo: number; total: number }> = {};
+    for (const issue of issues as Array<{ fields: ExtendedJiraIssueFields; key: string }>) {
+      // Get story points (default to 0 if not set, matching Python)
+      const storyPoints = issue.fields.storyPoints || issue.fields.customfield_10002 || 0;
+      
+      // Track epic
+      if (issue.fields.parent) {
+        piEpics.add(issue.fields.parent.key);
+      } else if (issue.fields.epic) {
+        piEpics.add(issue.fields.epic.key);
+      }
 
-  for (const [epic, data] of epicBreakdown) {
-    epicStoryPoints[epic] = data;
-  }
+      // Track sprints - handle both customfield and standard field
+      const issueSprints = (issue.fields.sprint || issue.fields.customfield_10341 || []) as Array<{
+        id: number;
+        state: string;
+        startDate: string;
+        endDate: string;
+        name: string;
+      }>;
 
-  for (const [sprintId, data] of sprintBreakdown) {
-    sprintStoryPoints[sprintId || 'No Sprint'] = data;
-  }
+      for (const sprint of issueSprints) {
+        if (sprint.state === 'active') {
+          currentSprints.add(sprint.id.toString());
+        }
 
-  // 6. Calculate RAG status using shared utilities
-  const completedPercentage = calculateCompletionPercentage(breakdown.completed, breakdown.total);
-  const ragStatus = calculateRagStatus(breakdown.completed, breakdown.total);
+        const sprintId = sprint.id.toString();
+        if (projectSprints.includes(sprintId)) {
+          if (!sprintDetails[sprintId]) {
+            sprintDetails[sprintId] = {
+              startDate: new Date(sprint.startDate),
+              endDate: new Date(sprint.endDate),
+              name: sprint.name
+            };
+          }
+        }
+      }
 
-  // 7. Identify current, previous, and future sprints
-  const today = new Date();
-  const currentSprints = filteredSprints.filter(sprint => {
-    const start = parseDate(sprint.startDate);
-    const end = parseDate(sprint.endDate);
-    return start && end && start <= today && today <= end;
-  });
-  const previousSprints = filteredSprints.filter(sprint => {
-    const end = parseDate(sprint.endDate);
-    return end && end < today;
-  });
-  const futureSprints = filteredSprints.filter(sprint => {
-    const start = parseDate(sprint.startDate);
-    return start && start > today;
-  });
+      // Track story points by status
+      const statusName = issue.fields.status?.name;
+      if (statusName) {
+        if (doneStatusList.includes(statusName)) {
+          completedStoryPoints += storyPoints;
+        } else if (inProgressStatusList.includes(statusName)) {
+          inProgressStoryPoints += storyPoints;
+        } else {
+          toDoStoryPoints += storyPoints;
+        }
+      }
 
-  // 8. Calculate stats for each group using shared utilities
-  function calculateSprintGroupStats(sprintGroup: typeof filteredSprints) {
-    const sprintIds = new Set(sprintGroup.map(sprint => sprint.id));
-    const groupIssues = issues.filter(issue => {
-      const issueSprintId = getSprintIdFromIssue(issue);
-      return issueSprintId && sprintIds.has(parseInt(issueSprintId));
-    });
-    const groupBreakdown = calculateStoryPointBreakdown(groupIssues);
-    return { 
-      groupTotal: groupBreakdown.total, 
-      groupCompleted: groupBreakdown.completed, 
-      groupInProgress: groupBreakdown.inProgress, 
-      groupToDo: groupBreakdown.toDo 
-    };
-  }
-
-  const currentSprintStats = calculateSprintGroupStats(currentSprints);
-  const previousSprintStats = calculateSprintGroupStats(previousSprints);
-  const futureSprintStats = calculateSprintGroupStats(futureSprints);
-
-  // 9. Calculate story points progress over time (burn-up)
-  const burnupData: Array<{ date: string; completed: number }> = [];
-  let cumulativeCompletedStoryPoints = 0;
-  const chronologicallySortedSprints = [...filteredSprints].sort((firstSprint, secondSprint) => (firstSprint.startDate || '').localeCompare(secondSprint.startDate || ''));
-  for (const sprint of chronologicallySortedSprints) {
-    const sprintId = sprint.id;
-    const sprintCompletedStoryPoints = sprintStoryPoints[sprintId]?.completed || 0;
-    cumulativeCompletedStoryPoints += sprintCompletedStoryPoints;
-    burnupData.push({ date: sprint.endDate || '', completed: cumulativeCompletedStoryPoints });
-  }
-
-  // 10. Calculate expected story points by now (story_points_current)
-  let storyPointsCurrent = 0;
-  let totalDays = 0;
-  let daysPast = 0;
-  for (const sprint of chronologicallySortedSprints) {
-    const start = parseDate(sprint.startDate);
-    const end = parseDate(sprint.endDate);
-    if (!start || !end) continue;
-    const sprintDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    totalDays += sprintDays;
-    if (today > end) {
-      daysPast += sprintDays;
-    } else if (today >= start && today <= end) {
-      daysPast += Math.ceil((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      totalStoryPoints += storyPoints;
     }
-  }
-  if (totalDays > 0) {
-    storyPointsCurrent = Math.round((daysPast / totalDays) * breakdown.total);
-  }
 
-  // 11. Advanced analytics: fetch RAID, WSJF, PI Scope, Progress for each epic
-  const epicAdvanced: Record<string, EpicAdvancedAnalytics> = {};
-  const epicKeys = Object.keys(epicStoryPoints).filter(epicKey => epicKey !== 'No Epic');
-  if (epicKeys.length > 0) {
-    // Fetch all epics in one JQL call
-    const epicJql = `key in (${epicKeys.map(epicKey => `"${epicKey}"`).join(',')})`;
-    const epicIssues = await getIssuesFromJira(epicJql);
-    for (const epic of epicIssues) {
-      const key = epic.key;
-      epicAdvanced[key] = {
-        raid: epic.fields['customfield_30160'] || '',
-        wsjf: epic.fields['customfield_42105'] || '',
-        piScope: epic.fields['customfield_20046'] || '',
-        progress: epic.fields['customfield_30195'] || '',
-      };
-    }
-  }
+    // 5. Get releases
+    const releases = await getReleasesFromJira(projectName);
 
-  // 12. Epic progress summary
-  const epicProgress: Record<string, { completed: number; inProgress: number; toDo: number; total: number; completedPct: number; rag: string; raid?: string; wsjf?: string; piScope?: string; progress?: string }> = {};
-  for (const epicKey in epicStoryPoints) {
-    const epicStoryPointData = epicStoryPoints[epicKey];
-    const completedPercentage = epicStoryPointData.total > 0 ? Math.round((epicStoryPointData.completed / epicStoryPointData.total) * 100) : 0;
-    epicProgress[epicKey] = {
-      ...epicStoryPointData,
-      completedPct: completedPercentage,
-      rag: getEpicRag(epicStoryPointData.completed, epicStoryPointData.total),
-      ...(epicAdvanced[epicKey] || {}),
+    // 6. Return results
+    return {
+      projectSprints,
+      totalStoryPoints: Math.round(totalStoryPoints),
+      completedStoryPoints: Math.round(completedStoryPoints),
+      inProgressStoryPoints: Math.round(inProgressStoryPoints),
+      toDoStoryPoints: Math.round(toDoStoryPoints),
+      piEpics: Array.from(piEpics),
+      releases,
+      currentSprints: Array.from(currentSprints),
+      sprints: sprintDetails
     };
+
+  } catch (error) {
+    console.error('Error in getPiPlanningData:', error);
+    throw error;
   }
-
-  // 13. Prepare RAID, WSJF, PI Scope, and Progress summaries
-  const raidSummary: Record<string, string> = {};
-  const wsjfSummary: Record<string, string> = {};
-  const piScopeSummary: Record<string, string> = {};
-  const progressSummary: Record<string, string> = {};
-
-  for (const epicKey in epicAdvanced) {
-    const epicAnalyticsData = epicAdvanced[epicKey];
-    if (epicAnalyticsData.raid) raidSummary[epicKey] = epicAnalyticsData.raid;
-    if (epicAnalyticsData.wsjf) wsjfSummary[epicKey] = epicAnalyticsData.wsjf;
-    if (epicAnalyticsData.piScope) piScopeSummary[epicKey] = epicAnalyticsData.piScope;
-    if (epicAnalyticsData.progress) progressSummary[epicKey] = epicAnalyticsData.progress;
-  }
-
-  return {
-    releases,
-    sprints: filteredSprints,
-    issues,
-    storyPoints: breakdown.total,
-    completedStoryPoints: breakdown.completed,
-    inProgressStoryPoints: breakdown.inProgress,
-    toDoStoryPoints: breakdown.toDo,
-    completedPercentage,
-    ragStatus,
-    epicBreakdown: epicStoryPoints,
-    sprintBreakdown: sprintStoryPoints,
-    currentSprints,
-    previousSprints,
-    futureSprints,
-    currentSprintStats,
-    previousSprintStats,
-    futureSprintStats,
-    burnup: burnupData,
-    storyPointsCurrent,
-    epicProgress,
-    raid: raidSummary,
-    wsjf: wsjfSummary,
-    piScope: piScopeSummary,
-    progress: progressSummary
-  };
 } 

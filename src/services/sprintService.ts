@@ -9,7 +9,9 @@ import {
 import { getSprintsFromJira, getIssuesFromJira, getBoardIdFromProjectKey } from './jiraService';
 import { calculateAddedStoryPoints, calculateTeamMembersCount, calculateStoryPointBreakdown } from '../utils/storyPointUtils';
 import { fetchWithProxy } from '../utils/fetchWithProxy';
-import config from '../config';
+const JIRA_URL = process.env.JIRA_URL;
+const JIRA_USER = process.env.JIRA_USER;
+const JIRA_TOKEN = process.env.JIRA_TOKEN;
 
 // Helper function to get board ID from project key or board ID
 async function getBoardId(boardIdOrProjectKey: string): Promise<string> {
@@ -44,12 +46,12 @@ export async function getSprintDetails(sprintId: number, boardIdOrProjectKey?: s
       // Try to get sprint details directly from Jira API as fallback
       console.log(`[DEBUG] Trying to get sprint ${sprintId} directly from Jira API`);
       try {
-        const directSprintResponse = await fetchWithProxy(`${config.jiraUrl}/rest/agile/latest/sprint/${sprintId}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Basic ${Buffer.from(`${config.jiraUser}:${config.jiraToken}`).toString('base64')}`,
-            'Content-Type': 'application/json'
-          }
+        if (!JIRA_URL || !JIRA_USER || !JIRA_TOKEN) {
+          throw new Error('Jira credentials are not set in environment variables');
+        }
+        
+        const directSprintResponse = await fetchWithProxy(`${JIRA_URL}/rest/agile/latest/sprint/${sprintId}`, {
+          auth: { username: JIRA_USER, password: JIRA_TOKEN }
         });
         
         if (directSprintResponse.ok) {
@@ -254,7 +256,7 @@ export async function getCurrentSprintObjectives(boardId: string): Promise<{
     for (const issue of sprintIssues) {
       objectives.push({
         issueKey: issue.key,
-        issueUrl: `${config.jiraUrl}/browse/${issue.key}`,
+        issueUrl: `${JIRA_URL}/browse/${issue.key}`,
         description: issue.fields.summary || 'No description available'
       });
     }
@@ -281,12 +283,12 @@ export async function getCurrentSprintObjectives(boardId: string): Promise<{
 
 async function getSprintObjective(sprintId: number): Promise<string> {
   try {
-    const response = await fetchWithProxy(`${config.jiraUrl}/rest/agile/latest/sprint/${sprintId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Basic ${Buffer.from(`${config.jiraUser}:${config.jiraToken}`).toString('base64')}`,
-        'Content-Type': 'application/json'
-      }
+    if (!JIRA_URL || !JIRA_USER || !JIRA_TOKEN) {
+      throw new Error('Jira credentials are not set in environment variables');
+    }
+    
+    const response = await fetchWithProxy(`${JIRA_URL}/rest/agile/latest/sprint/${sprintId}`, {
+      auth: { username: JIRA_USER, password: JIRA_TOKEN }
     });
 
     if (!response.ok) {
@@ -306,12 +308,12 @@ async function getSprintObjective(sprintId: number): Promise<string> {
 
 async function getVelocityStatsForSprint(sprintId: number, boardId: number): Promise<{ estimated?: { value: number }; completed?: { value: number } }> {
   try {
-    const response = await fetchWithProxy(`${config.jiraUrl}/rest/greenhopper/1.0/rapid/charts/velocity?rapidViewId=${boardId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Basic ${Buffer.from(`${config.jiraUser}:${config.jiraToken}`).toString('base64')}`,
-        'Content-Type': 'application/json'
-      }
+    if (!JIRA_URL || !JIRA_USER || !JIRA_TOKEN) {
+      throw new Error('Jira credentials are not set in environment variables');
+    }
+    
+    const response = await fetchWithProxy(`${JIRA_URL}/rest/greenhopper/1.0/rapid/charts/velocity?rapidViewId=${boardId}`, {
+      auth: { username: JIRA_USER, password: JIRA_TOKEN }
     });
 
     if (!response.ok) {

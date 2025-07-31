@@ -678,14 +678,12 @@ router.get('/project/:projectKey/boards', async (req, res) => {
     console.log(`[DEBUG] Getting boards and sprints for project: ${projectKey}`);
 
     // Get all boards for the project
-    const credentials = {
-      url: process.env.JIRA_URL!,
-      user: process.env.JIRA_USER!,
-      token: process.env.JIRA_TOKEN!
-    };
+    if (!process.env.JIRA_URL || !process.env.JIRA_USER || !process.env.JIRA_TOKEN) {
+      throw new Error('Jira credentials are not set in environment variables');
+    }
 
-    const boardsResponse = await fetchWithProxy(`${credentials.url}/rest/agile/1.0/board`, {
-      auth: { username: credentials.user, password: credentials.token },
+    const boardsResponse = await fetchWithProxy(`${process.env.JIRA_URL}/rest/agile/1.0/board`, {
+      auth: { username: process.env.JIRA_USER, password: process.env.JIRA_TOKEN },
     });
 
     if (!boardsResponse.ok) {

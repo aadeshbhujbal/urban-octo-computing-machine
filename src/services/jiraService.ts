@@ -94,195 +94,211 @@ export async function getSprintsFromJira(
     originBoardId?: boolean;
   }
 ): Promise<JiraSprint[]> {
-  if (!JIRA_URL || !JIRA_USER || !JIRA_TOKEN) {
-    throw new Error('Jira credentials are not set in environment variables');
-  }
-
-  const {
-    startDate,
-    endDate,
-    timezone = 'UTC',
-    sprintExcludeFilter,
-    sprintIncludeFilter,
-    originBoardId = true
-  } = options || {};
-
-  const sprints: JiraSprint[] = [];
-  let startAt = 0;
-  const maxResults = 25; // Match Python optimization
-
+  validateJiraCredentials();
+  
   try {
     const credentials = validateJiraCredentials();
     
-    // Convert string dates to timezone-aware datetime objects (Python equivalent)
+    const {
+      startDate,
+      endDate,
+      timezone = 'UTC',
+      sprintExcludeFilter,
+      sprintIncludeFilter,
+      originBoardId = true
+    } = options || {};
+
+    // Convert string dates to timezone-aware datetime objects
     let startDateObj: Date | null = null;
     let endDateObj: Date | null = null;
     
     if (startDate) {
-      startDateObj = new Date(startDate + 'T00:00:00.000Z');
+      // Set to start of day in specified timezone
+      startDateObj = new Date(startDate + 'T00:00:00.000' + (timezone === 'UTC' ? 'Z' : ''));
+      if (timezone !== 'UTC') {
+        // Adjust for timezone offset
+        const offset = new Date().getTimezoneOffset();
+        startDateObj.setMinutes(startDateObj.getMinutes() - offset);
+      }
     }
     if (endDate) {
-      endDateObj = new Date(endDate + 'T23:59:59.999Z');
-    }
-
-    console.log(`[DEBUG] Fetching sprints for board ${boardId} with state: ${state}`);
-    console.log(`[DEBUG] Date range: ${startDate} to ${endDate}`);
-    console.log(`[DEBUG] Filters: exclude=${sprintExcludeFilter}, include=${sprintIncludeFilter}, originBoardId=${originBoardId}`);
-    
-    while (true) {
-      try {
-        const queryParams = new URLSearchParams({
-          state,
-          startAt: startAt.toString(),
-          maxResults: maxResults.toString()
-        });
-        
-        const apiUrl = `${credentials.url}/rest/agile/1.0/board/${boardId}/sprint?${queryParams}`;
-        console.log(`[DEBUG] Making API call to: ${apiUrl}`);
-        
-        const sprintResponse = await fetchWithProxy(apiUrl, {
-          auth: { username: credentials.user, password: credentials.token },
-        });
-
-        console.log(`[DEBUG] API response status: ${sprintResponse.status}`);
-        
-        if (!sprintResponse.ok) {
-          console.error(`[DEBUG] API call failed with status ${sprintResponse.status}: ${sprintResponse.statusText}`);
-          const errorText = await sprintResponse.text();
-          console.error(`[DEBUG] Error response body:`, errorText);
-          break;
-        }
-
-        const sprintData = await sprintResponse.json() as any;
-        console.log(`[DEBUG] API response data:`, {
-          valuesCount: sprintData.values?.length || 0,
-          isLast: sprintData.isLast || false,
-          maxResults: sprintData.maxResults || maxResults,
-          startAt: sprintData.startAt || startAt
-        });
-        
-        if (!sprintData.values || sprintData.values.length === 0) {
-          console.log(`[DEBUG] No sprints found in response`);
-          break;
-        }
-
-        // Process this batch immediately (Python equivalent)
-        for (const sprint of sprintData.values) {
-          // Skip if missing required fields (Python equivalent)
-          if (!sprint.id || !sprint.name) {
-            console.log(`[DEBUG] Skipping sprint with missing required fields:`, sprint);
-            continue;
-          }
-          
-          // Handle null/undefined dates properly
-          const startDate = sprint.startDate || null;
-          const endDate = sprint.endDate || null;
-          
-          // Skip sprints without dates (Python equivalent)
-          if (!startDate || !endDate) {
-            console.log(`[DEBUG] Skipping sprint without dates: ${sprint.id} - ${sprint.name} (startDate: ${startDate}, endDate: ${endDate})`);
-            continue;
-          }
-          
-          // Filter by origin board ID if requested (Python equivalent)
-          if (originBoardId && sprint.originBoardId && parseInt(sprint.originBoardId.toString()) !== parseInt(boardId)) {
-            console.log(`[DEBUG] Skipping sprint with different origin board ID: ${sprint.id} (origin: ${sprint.originBoardId}, current: ${boardId})`);
-            continue;
-          }
-          
-          // Filter by sprint name include filter (Python equivalent)
-          if (sprintIncludeFilter && !sprint.name.includes(sprintIncludeFilter)) {
-            console.log(`[DEBUG] Skipping sprint not matching include filter: ${sprint.id} - ${sprint.name}`);
-            continue;
-          }
-          
-          // Filter by sprint name exclude filter (Python equivalent)
-          if (sprintExcludeFilter && sprint.name.includes(sprintExcludeFilter)) {
-            console.log(`[DEBUG] Skipping sprint matching exclude filter: ${sprint.id} - ${sprint.name}`);
-            continue;
-          }
-
-          // Parse sprint dates with timezone awareness (Python equivalent)
-          try {
-            const sprintStart = new Date(startDate);
-            const sprintEnd = new Date(endDate);
-            
-            // Validate parsed dates
-            if (isNaN(sprintStart.getTime()) || isNaN(sprintEnd.getTime())) {
-              console.log(`[DEBUG] Skipping sprint with invalid dates: ${sprint.id} - ${sprint.name} (startDate: ${startDate}, endDate: ${endDate})`);
-              continue;
-            }
-            
-            // Check if sprint is within the date range (Python equivalent)
-            if (startDateObj && endDateObj) {
-              // Check if sprint overlaps with the date range
-              if (sprintEnd < startDateObj || sprintStart > endDateObj) {
-                console.log(`[DEBUG] Skipping sprint outside date range: ${sprint.id} - ${sprint.name}`);
-                continue;
-              }
-              // Additional check: sprint must start after start date (Python equivalent)
-              if (sprintStart <= startDateObj) {
-                console.log(`[DEBUG] Skipping sprint starting before start date: ${sprint.id} - ${sprint.name}`);
-                continue;
-              }
-            } else if (startDateObj) {
-              if (sprintStart < startDateObj) {
-                console.log(`[DEBUG] Skipping sprint starting before start date: ${sprint.id} - ${sprint.name}`);
-                continue;
-              }
-            } else if (endDateObj) {
-              if (sprintEnd > endDateObj) {
-                console.log(`[DEBUG] Skipping sprint ending after end date: ${sprint.id} - ${sprint.name}`);
-                continue;
-              }
-            }
-            
-            // Convert to JiraSprint format for consistency
-            const processedSprint: JiraSprint = {
-              id: sprint.id,
-              name: sprint.name,
-              state: sprint.state as JiraSprintState,
-              startDate: startDate,
-              endDate: endDate,
-              completeDate: sprint.completeDate,
-              originBoardId: sprint.originBoardId
-            };
-            
-            // Add sprint to filtered results
-            sprints.push(processedSprint);
-            console.log(`[DEBUG] Added sprint: ${sprint.id} - ${sprint.name} (${startDate} to ${endDate})`);
-            
-          } catch (dateError) {
-            console.error(`[DEBUG] Error parsing dates for sprint ${sprint.id}:`, dateError);
-            continue;
-          }
-        }
-        
-        // Early termination if we've processed all sprints (Python equivalent)
-        if (sprintData.isLast || sprintData.values.length < maxResults) {
-          console.log(`[DEBUG] Reached end of sprints (isLast: ${sprintData.isLast}, values: ${sprintData.values.length})`);
-          break;
-        }
-        
-        startAt = (sprintData.startAt || startAt) + sprintData.values.length;
-      } catch (error) {
-        console.error(`[DEBUG] Error fetching sprints for board ${boardId}:`, error);
-        break;
+      // Set to end of day in specified timezone
+      endDateObj = new Date(endDate + 'T23:59:59.999' + (timezone === 'UTC' ? 'Z' : ''));
+      if (timezone !== 'UTC') {
+        // Adjust for timezone offset
+        const offset = new Date().getTimezoneOffset();
+        endDateObj.setMinutes(endDateObj.getMinutes() - offset);
       }
     }
 
-    console.log(`[DEBUG] Total filtered sprints found: ${sprints.length}`);
-    
-    // Sort sprints by start date (chronologically, Python equivalent)
-    const sortedSprints = sprints.sort((firstSprint, secondSprint) => {
-      const firstDate = firstSprint.startDate ? new Date(firstSprint.startDate).getTime() : 0;
-      const secondDate = secondSprint.startDate ? new Date(secondSprint.startDate).getTime() : 0;
-      return firstDate - secondDate; // Chronological order (Python equivalent)
-    });
-    
-    return sortedSprints;
+    // Optimization: Use smaller batch size for faster initial response
+    const maxResults = 25;
+    let startAt = 0;
+    const filteredSprints: Array<{
+      id: string;
+      name: string;
+      startDate: Date;
+    }> = [];
+
+    while (true) {
+      // Get a batch of sprints
+      const queryParams = new URLSearchParams({
+        state,
+        startAt: startAt.toString(),
+        maxResults: maxResults.toString()
+      });
+      
+      const sprintResponse = await fetchWithProxy(
+        `${credentials.url}/rest/agile/1.0/board/${boardId}/sprint?${queryParams}`,
+        { auth: { username: credentials.user, password: credentials.token } }
+      );
+
+      if (!sprintResponse.ok) {
+        throw new Error(`Failed to fetch sprints: ${sprintResponse.status} ${sprintResponse.statusText}`);
+      }
+
+      const sprintData = await sprintResponse.json() as { 
+        values: Array<{
+          id: string;
+          name: string;
+          startDate?: string;
+          endDate?: string;
+          state: string;
+          originBoardId?: string;
+        }>;
+        isLast: boolean;
+      };
+
+      if (!sprintData.values || sprintData.values.length === 0) {
+        break;
+      }
+
+      // Process this batch immediately
+      for (const sprint of sprintData.values) {
+        // Skip if missing required fields
+        if (!sprint.id || !sprint.name) {
+          continue;
+        }
+        
+        // Skip sprints without dates
+        if (!sprint.startDate || !sprint.endDate) {
+          continue;
+        }
+
+        // Filter by origin board ID if requested
+        if (originBoardId && sprint.originBoardId && parseInt(sprint.originBoardId) !== parseInt(boardId)) {
+          continue;
+        }
+
+        // Filter by sprint name filters
+        if (sprintIncludeFilter && !sprint.name.includes(sprintIncludeFilter)) {
+          continue;
+        }
+        if (sprintExcludeFilter && sprint.name.includes(sprintExcludeFilter)) {
+          continue;
+        }
+
+        try {
+          // Parse dates with timezone awareness
+          const sprintStart = new Date(sprint.startDate);
+          const sprintEnd = new Date(sprint.endDate);
+
+          // Skip invalid dates
+          if (isNaN(sprintStart.getTime()) || isNaN(sprintEnd.getTime())) {
+            continue;
+          }
+
+          // Check if sprint is within the date range (match Python logic)
+          if (startDateObj && endDateObj) {
+            // Only include sprints that overlap with the date range AND start after start date
+            if (!(sprintEnd < startDateObj || sprintStart > endDateObj)) {
+              if (sprintStart > startDateObj) {
+                filteredSprints.push({
+                  id: sprint.id,
+                  name: sprint.name,
+                  startDate: sprintStart
+                });
+              }
+            }
+          } else if (startDateObj) {
+            if (sprintStart > startDateObj) {
+              filteredSprints.push({
+                id: sprint.id,
+                name: sprint.name,
+                startDate: sprintStart
+              });
+            }
+          } else if (endDateObj) {
+            if (sprintEnd <= endDateObj) {
+              filteredSprints.push({
+                id: sprint.id,
+                name: sprint.name,
+                startDate: sprintStart
+              });
+            }
+          } else {
+            filteredSprints.push({
+              id: sprint.id,
+              name: sprint.name,
+              startDate: sprintStart
+            });
+          }
+
+        } catch (error) {
+          console.error(`Error parsing dates for sprint ${sprint.id}:`, error);
+          continue;
+        }
+      }
+
+      // Early termination if we've processed all sprints
+      if (sprintData.isLast || sprintData.values.length < maxResults) {
+        break;
+      }
+
+      startAt += maxResults;
+    }
+
+    // Sort sprints by start date
+    filteredSprints.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+
+    // Convert to JiraSprint format
+    const sprints = await Promise.all(
+      filteredSprints.map(async (sprint) => {
+        const sprintDetails = await fetchWithProxy(
+          `${credentials.url}/rest/agile/1.0/sprint/${sprint.id}`,
+          { auth: { username: credentials.user, password: credentials.token } }
+        );
+
+        if (!sprintDetails.ok) {
+          throw new Error(`Failed to fetch sprint details: ${sprintDetails.status}`);
+        }
+
+        const details = await sprintDetails.json() as {
+          id: number;
+          name: string;
+          state: string;
+          startDate: string;
+          endDate: string;
+          completeDate?: string;
+          originBoardId?: number;
+        };
+        
+        return {
+          id: details.id,
+          name: details.name,
+          state: details.state as JiraSprintState,
+          startDate: details.startDate,
+          endDate: details.endDate,
+          completeDate: details.completeDate,
+          originBoardId: details.originBoardId
+        };
+      })
+    );
+
+    return sprints;
+
   } catch (error) {
-    console.error(`[DEBUG] Error in getSprintsFromJira for board ${boardId}:`, error);
+    console.error(`Error in getSprintsFromJira for board ${boardId}:`, error);
     throw error;
   }
 }
@@ -809,5 +825,458 @@ export async function getReleasePlan(projectName: string): Promise<Array<{
   } catch (error) {
     console.error(`Error getting release plan for project ${projectName}:`, error);
     return [];
+  }
+} 
+
+/**
+ * Get detailed information about a specific board (Python equivalent)
+ * Python: def get_board_details(board_id):
+ */
+export async function getBoardDetails(boardId: string): Promise<{
+  id: number;
+  name: string;
+  type: string;
+  location?: {
+    projectId: number;
+    projectKey: string;
+    projectName: string;
+    displayName: string;
+    projectNameKey: string;
+  };
+  filter?: {
+    id: number;
+    name: string;
+    query: string;
+  };
+  subQuery?: {
+    query: string;
+  };
+  columnConfig?: {
+    columns: Array<{
+      name: string;
+      statuses: Array<{
+        id: string;
+        name: string;
+      }>;
+    }>;
+  };
+}> {
+  validateJiraCredentials();
+  
+  try {
+    const credentials = validateJiraCredentials();
+    
+    const boardResponse = await fetchWithProxy(`${credentials.url}/rest/agile/1.0/board/${boardId}`, {
+      auth: { username: credentials.user, password: credentials.token },
+    });
+    
+    if (!boardResponse.ok) {
+      throw new Error(`Failed to fetch board details: ${boardResponse.status} ${boardResponse.statusText}`);
+    }
+    
+    const boardData = await boardResponse.json() as {
+      id: number;
+      name: string;
+      type: string;
+      location?: {
+        projectId: number;
+        projectKey: string;
+        projectName: string;
+        displayName: string;
+        projectNameKey: string;
+      };
+      filter?: {
+        id: number;
+        name: string;
+        query: string;
+      };
+      subQuery?: {
+        query: string;
+      };
+      columnConfig?: {
+        columns: Array<{
+          name: string;
+          statuses: Array<{
+            id: string;
+            name: string;
+          }>;
+        }>;
+      };
+    };
+    
+    return boardData;
+  } catch (error) {
+    console.error(`Error fetching board details for board ${boardId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Get all boards with optional filtering (Python equivalent)
+ * Python: def get_all_boards(project_key=None, board_type=None):
+ */
+export async function getAllBoards(options?: {
+  projectKey?: string;
+  boardType?: string;
+}): Promise<Array<{
+  id: number;
+  name: string;
+  type: string;
+  location?: {
+    projectId: number;
+    projectKey: string;
+    projectName: string;
+    displayName: string;
+    projectNameKey: string;
+  };
+  filter?: {
+    id: number;
+    name: string;
+    query: string;
+  };
+}>> {
+  validateJiraCredentials();
+  
+  try {
+    const credentials = validateJiraCredentials();
+    
+    const boardsResponse = await fetchWithProxy(`${credentials.url}/rest/agile/1.0/board`, {
+      auth: { username: credentials.user, password: credentials.token },
+    });
+    
+    if (!boardsResponse.ok) {
+      throw new Error(`Failed to fetch boards: ${boardsResponse.status} ${boardsResponse.statusText}`);
+    }
+    
+    const boardsData = await boardsResponse.json() as { values: Array<{
+      id: number;
+      name: string;
+      type: string;
+      location?: {
+        projectId: number;
+        projectKey: string;
+        projectName: string;
+        displayName: string;
+        projectNameKey: string;
+      };
+      filter?: {
+        id: number;
+        name: string;
+        query: string;
+      };
+    }> };
+    
+    let filteredBoards = boardsData.values;
+    
+    // Filter by project key if specified
+    if (options?.projectKey) {
+      filteredBoards = filteredBoards.filter(board => 
+        board.location && board.location.projectKey === options.projectKey
+      );
+    }
+    
+    // Filter by board type if specified
+    if (options?.boardType) {
+      filteredBoards = filteredBoards.filter(board => 
+        board.type === options.boardType
+      );
+    }
+    
+    return filteredBoards;
+  } catch (error) {
+    console.error('Error fetching all boards:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get board configuration including columns and statuses (Python equivalent)
+ * Python: def get_board_configuration(board_id):
+ */
+export async function getBoardConfiguration(boardId: string): Promise<{
+  id: number;
+  name: string;
+  columns: Array<{
+    name: string;
+    statuses: Array<{
+      id: string;
+      name: string;
+    }>;
+  }>;
+  constraintType: string;
+  subQuery?: {
+    query: string;
+  };
+}> {
+  validateJiraCredentials();
+  
+  try {
+    const credentials = validateJiraCredentials();
+    
+    const configResponse = await fetchWithProxy(`${credentials.url}/rest/agile/1.0/board/${boardId}/configuration`, {
+      auth: { username: credentials.user, password: credentials.token },
+    });
+    
+    if (!configResponse.ok) {
+      throw new Error(`Failed to fetch board configuration: ${configResponse.status} ${configResponse.statusText}`);
+    }
+    
+    const configData = await configResponse.json() as {
+      id: number;
+      name: string;
+      columns: Array<{
+        name: string;
+        statuses: Array<{
+          id: string;
+          name: string;
+        }>;
+      }>;
+      constraintType: string;
+      subQuery?: {
+        query: string;
+      };
+    };
+    
+    return configData;
+  } catch (error) {
+    console.error(`Error fetching board configuration for board ${boardId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Get issues for a specific board with optional filtering (Python equivalent)
+ * Python: def get_board_issues(board_id, jql=None, max_results=1000):
+ */
+export async function getBoardIssues(
+  boardId: string, 
+  options?: {
+    jql?: string;
+    maxResults?: number;
+    fields?: string[];
+    expand?: string[];
+  }
+): Promise<{
+  issues: JiraIssue[];
+  total: number;
+  startAt: number;
+  maxResults: number;
+}> {
+  validateJiraCredentials();
+  
+  try {
+    const credentials = validateJiraCredentials();
+    
+    const {
+      jql,
+      maxResults = 1000,
+      fields = [
+        'summary',
+        'status',
+        'assignee',
+        'created',
+        'updated',
+        'issuetype',
+        'project',
+        'priority',
+        'labels',
+        'description',
+        'customfield_10002', // Story Points
+        'customfield_10341', // Sprint
+        'customfield_30160', // RAID
+        'customfield_42105', // WSJF
+        'customfield_20046', // PI Scope
+        'customfield_30195'  // Progress
+      ],
+      expand = []
+    } = options || {};
+    
+    const queryParams = new URLSearchParams({
+      startAt: '0',
+      maxResults: maxResults.toString(),
+      fields: fields.join(',')
+    });
+    
+    if (jql) {
+      queryParams.append('jql', jql);
+    }
+    
+    if (expand.length > 0) {
+      queryParams.append('expand', expand.join(','));
+    }
+    
+    const issuesResponse = await fetchWithProxy(`${credentials.url}/rest/agile/1.0/board/${boardId}/issue?${queryParams}`, {
+      auth: { username: credentials.user, password: credentials.token },
+    });
+    
+    if (!issuesResponse.ok) {
+      throw new Error(`Failed to fetch board issues: ${issuesResponse.status} ${issuesResponse.statusText}`);
+    }
+    
+    const issuesData = await issuesResponse.json() as {
+      issues: JiraIssue[];
+      total: number;
+      startAt: number;
+      maxResults: number;
+    };
+    
+    return issuesData;
+  } catch (error) {
+    console.error(`Error fetching board issues for board ${boardId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Get board backlog issues (Python equivalent)
+ * Python: def get_board_backlog(board_id):
+ */
+export async function getBoardBacklog(boardId: string): Promise<{
+  issues: JiraIssue[];
+  total: number;
+  startAt: number;
+  maxResults: number;
+}> {
+  validateJiraCredentials();
+  
+  try {
+    const credentials = validateJiraCredentials();
+    
+    const queryParams = new URLSearchParams({
+      startAt: '0',
+      maxResults: '1000',
+      fields: 'summary,status,assignee,created,updated,issuetype,project,priority,labels,description,customfield_10002,customfield_10341,customfield_30160,customfield_42105,customfield_20046,customfield_30195'
+    });
+    
+    const backlogResponse = await fetchWithProxy(`${credentials.url}/rest/agile/1.0/board/${boardId}/backlog?${queryParams}`, {
+      auth: { username: credentials.user, password: credentials.token },
+    });
+    
+    if (!backlogResponse.ok) {
+      throw new Error(`Failed to fetch board backlog: ${backlogResponse.status} ${backlogResponse.statusText}`);
+    }
+    
+    const backlogData = await backlogResponse.json() as {
+      issues: JiraIssue[];
+      total: number;
+      startAt: number;
+      maxResults: number;
+    };
+    
+    return backlogData;
+  } catch (error) {
+    console.error(`Error fetching board backlog for board ${boardId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Get board rapid views (for velocity charts) (Python equivalent)
+ * Python: def get_board_rapid_views(board_id):
+ */
+export async function getBoardRapidViews(boardId: string): Promise<Array<{
+  id: number;
+  name: string;
+  canEdit: boolean;
+  sprintSupportEnabled: boolean;
+}>> {
+  validateJiraCredentials();
+  
+  try {
+    const credentials = validateJiraCredentials();
+    
+    const rapidViewsResponse = await fetchWithProxy(`${credentials.url}/rest/greenhopper/1.0/rapidview?rapidViewId=${boardId}`, {
+      auth: { username: credentials.user, password: credentials.token },
+    });
+    
+    if (!rapidViewsResponse.ok) {
+      throw new Error(`Failed to fetch board rapid views: ${rapidViewsResponse.status} ${rapidViewsResponse.statusText}`);
+    }
+    
+    const rapidViewsData = await rapidViewsResponse.json() as { views: Array<{
+      id: number;
+      name: string;
+      canEdit: boolean;
+      sprintSupportEnabled: boolean;
+    }> };
+    
+    return rapidViewsData.views || [];
+  } catch (error) {
+    console.error(`Error fetching board rapid views for board ${boardId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Get board statistics and metrics (Python equivalent)
+ * Python: def get_board_statistics(board_id):
+ */
+export async function getBoardStatistics(boardId: string): Promise<{
+  boardId: number;
+  totalIssues: number;
+  issuesInSprint: number;
+  issuesInBacklog: number;
+  completedIssues: number;
+  inProgressIssues: number;
+  toDoIssues: number;
+  velocity: {
+    estimated: number;
+    completed: number;
+  };
+}> {
+  validateJiraCredentials();
+  
+  try {
+    const credentials = validateJiraCredentials();
+    
+    // Get board issues
+    const boardIssues = await getBoardIssues(boardId);
+    
+    // Get velocity stats
+    const velocityStats = await getVelocityStatsFromJira(boardId);
+    
+    // Calculate statistics
+    const totalIssues = boardIssues.total;
+    let issuesInSprint = 0;
+    let issuesInBacklog = 0;
+    let completedIssues = 0;
+    let inProgressIssues = 0;
+    let toDoIssues = 0;
+    
+    for (const issue of boardIssues.issues) {
+      const status = issue.fields.status?.name?.toLowerCase() || '';
+      const sprints = issue.fields.customfield_10341;
+      
+      if (sprints && Array.isArray(sprints) && sprints.length > 0) {
+        issuesInSprint++;
+      } else {
+        issuesInBacklog++;
+      }
+      
+      if (status.includes('done') || status.includes('complete')) {
+        completedIssues++;
+      } else if (status.includes('progress') || status.includes('development')) {
+        inProgressIssues++;
+      } else {
+        toDoIssues++;
+      }
+    }
+    
+    return {
+      boardId: parseInt(boardId),
+      totalIssues,
+      issuesInSprint,
+      issuesInBacklog,
+      completedIssues,
+      inProgressIssues,
+      toDoIssues,
+      velocity: {
+        estimated: velocityStats.velocityStatEntries?.latest?.estimated?.value || 0,
+        completed: velocityStats.velocityStatEntries?.latest?.completed?.value || 0
+      }
+    };
+  } catch (error) {
+    console.error(`Error fetching board statistics for board ${boardId}:`, error);
+    throw error;
   }
 } 
